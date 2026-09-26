@@ -691,7 +691,11 @@ fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
     };
 
     // Required arguments, including conditional ones, reported together.
+    // When exactly one is missing the error names it, so a JSON reader
+    // can act on `arg`.
     let mut text = String::new();
+    let mut missing = 0;
+    let mut last = "";
     for (ai, a) in cmd.args.iter().enumerate() {
         if !matches.slots[ai].values.is_empty() {
             continue;
@@ -715,11 +719,14 @@ fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
         if needed {
             text.push_str("\n  ");
             text.push_str(&a.display_name());
+            missing += 1;
+            last = &a.id;
         }
     }
-    if !text.is_empty() {
+    if missing > 0 {
         text.insert_str(0, "the following required arguments were not provided:");
-        return Err(Error::new(ErrorKind::MissingRequired, text));
+        let e = Error::new(ErrorKind::MissingRequired, text);
+        return Err(if missing == 1 { e.with_arg(last) } else { e });
     }
 
     // Per-argument relations.

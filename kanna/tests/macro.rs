@@ -28,6 +28,7 @@ kanna::cli! {
         #[name = "rm", alias = "remove"]
         Remove(RemoveArgs),
         /// List things
+        #[no_tool]
         List,
     }
 
@@ -371,7 +372,24 @@ fn from_matches_and_parse_from() {
 
 kanna::value_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum Level { Low = "low", High = "high" }
+    enum Level {
+        /// Whisper
+        Low = "low",
+        High = "high",
+    }
+}
+
+#[test]
+fn variant_settings_reach_the_definition() {
+    let cmd = Args::command();
+    let list = cmd.find_subcommand("list").unwrap();
+    assert!(list.is_no_tool() && !list.is_hidden());
+    assert!(!cmd.find_subcommand("add").unwrap().is_no_tool());
+    let level = Parity::command();
+    assert_eq!(
+        level.find_arg("level").unwrap().possible_value_help(),
+        ["Whisper", ""]
+    );
 }
 
 kanna::cli! {
@@ -460,7 +478,10 @@ fn parity_settings_through_the_macro() {
     );
     assert!(long.contains("Where the result goes, at length"), "{long}");
     assert!(long.contains("Tuning:\n"), "{long}");
-    assert!(long.contains("[possible values: low, high]"), "{long}");
+    assert!(
+        long.contains("[possible values: low = Whisper,\n                       high]"),
+        "{long}"
+    );
     assert!(long.contains("[aliases: yes]"), "{long}");
     assert!(long.contains("install  Install [aliases: i]"), "{long}");
     assert!(long.lines().all(|l| l.chars().count() <= 80), "{long}");

@@ -8,8 +8,8 @@ A layered command line argument parser for Rust.
 | Layer | Crate / feature | What you get | Cost on the sample CLI¹ |
 |-------|-----------------|--------------|------------------------:|
 | 1. Lexer | `kanna-core` | GNU/POSIX-correct `Parser::next()` loop, `OsString` values, zero dependencies, one file, no `unsafe` | 13.5 KiB, 0.6 s build |
-| 2. Builder | `kanna` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings, examples and wrapping, errors with tips, definition validation | 74.1 KiB, 0.9 s |
-| 3. `cli!` | `kanna` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 81.4 KiB, 0.9 s |
+| 2. Builder | `kanna` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings, examples and wrapping, errors with tips, definition validation | 75.0 KiB, 0.9 s |
+| 3. `cli!` | `kanna` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 82.6 KiB, 0.9 s |
 | 4. Derive | `kanna` + `derive` | `#[derive(Args)]`, `#[derive(Commands)]`, `#[derive(ValueEnum)]` with the same semantics as `cli!` | 81 KiB, 2.3 s |
 | + | `kanna-complete`, `kanna-doc`, `kanna-schema` | Shell completion (5 shells, static and dynamic), manpage / Markdown / HTML, JSON description | separate crates |
 
@@ -207,8 +207,8 @@ stripped ([ADR-0007]).
 | **kanna-core** | imperative | **13.5 KiB** | **0.76 s / 1.06 s** | **0** | yes |
 | argh | derive | 15.7 KiB | 3.31 s / 3.46 s | 13 | no |
 | lexopt | imperative | 16.6 KiB | 0.78 s / 1.07 s | 1 | yes |
-| **kanna** (builder, `help`) | builder | **74.1 KiB** | **0.88 s / 1.27 s** | **0** | yes |
-| **kanna** (`cli!`, `help`) | macro DSL | 81.4 KiB | 0.94 s / 1.42 s | 0 | yes |
+| **kanna** (builder, `help`) | builder | **75.0 KiB** | **0.88 s / 1.27 s** | **0** | yes |
+| **kanna** (`cli!`, `help`) | macro DSL | 82.6 KiB | 0.94 s / 1.42 s | 0 | yes |
 | **kanna** (derive, `help`) | derive | 81 KiB | 2.3 s / 2.5 s | 4 | yes |
 | **kanna** (builder, `full`) | builder | 93.2 KiB | 0.90 s / 1.39 s | 0 | yes |
 | bpaf | combinators | 95.1 KiB | 0.78 s / 1.25 s | 1 | yes |

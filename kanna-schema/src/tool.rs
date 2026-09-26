@@ -26,14 +26,18 @@
 //! ```
 //!
 //! Property names are the argument ids. Flags map to booleans, counters
-//! to integers, values to the JSON type matching their Rust type
-//! ([`ValueType`]), `possible` values to `enum`, repeated arguments to
-//! arrays. Hidden arguments are left out. Global options of enclosing
-//! commands are included in every subcommand's tool.
+//! and unsigned integers to integers with `minimum: 0`, other values to
+//! the JSON type matching their Rust type ([`ValueType`]), `possible`
+//! values to `enum` (their descriptions, from a `ValueEnum`'s doc
+//! comments or `possible_with_help`, are appended to the property's
+//! description), repeated arguments to arrays. Hidden arguments are left
+//! out. Global options of enclosing commands are included in every
+//! subcommand's tool. Subcommands marked `hidden` or `no_tool` produce no
+//! tool (nor do their own subcommands).
 
 use std::ffi::OsString;
 
-use kanna::{ArgDef, Command, ValueType};
+use kanna::{ArgDef, Command, Error, ErrorKind, ValueType};
 
 /// One callable tool: a command (or subcommand) with an input schema.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,7 +134,7 @@ fn collect<'a>(cmd: &'a Command, path: Vec<String>, inherited: &[&'a ArgDef], ou
     let built: Vec<(String, Command)> = cmd
         .subcommands()
         .iter()
-        .filter(|s| !s.is_hidden())
+        .filter(|s| !s.is_hidden() && !s.is_no_tool())
         .map(|s| (s.name().to_owned(), s.build()))
         .collect();
     for (name, sub) in &built {
@@ -168,7 +172,7 @@ fn collect_owned(cmd: &Command, path: Vec<String>, inherited: &[&ArgDef], out: &
             .filter(|a| a.is_global() && !a.is_hidden()),
     );
     for s in cmd.subcommands() {
-        if s.is_hidden() {
+        if s.is_hidden() || s.is_no_tool() {
             continue;
         }
         let mut p = path.clone();
@@ -187,7 +191,7 @@ fn tool_name(path: &[String]) -> String {
 /// The JSON Schema `type` for a value.
 fn json_type(a: &ArgDef) -> &'static str {
     match a.value_type() {
-        Some(ValueType::Integer) => "integer",
+        Some(ValueType::Integer | ValueType::Unsigned) => "integer",
         Some(ValueType::Float) => "number",
         Some(ValueType::Boolean) => "boolean",
         _ => "string",
@@ -249,10 +253,28 @@ fn property(s: &mut String, a: &ArgDef) {
     } else {
         s.push_str(&item);
     }
-    if a.is_count() {
+    if a.is_count() || (a.takes_value() && a.value_type() == Some(ValueType::Unsigned)) {
         s.push_str(",\"minimum\":0");
     }
     let mut description = a.long_help().or(a.help()).unwrap_or("").to_owned();
+    if !a.possible_value_help().is_empty() {
+        // The same legend as `--help`: every value, described when it is.
+        if !description.is_empty() {
+            description.push(' ');
+        }
+        description.push_str("[possible values: ");
+        for (i, name) in a.possible_values().iter().enumerate() {
+            if i > 0 {
+                description.push_str(", ");
+            }
+            description.push_str(name);
+            if let Some(text) = a.possible_value_help().get(i).filter(|t| !t.is_empty()) {
+                description.push_str(" = ");
+                description.push_str(text);
+            }
+        }
+        description.push(']');
+    }
     #[cfg(feature = "env")]
     if let Some(var) = a.env() {
         if !description.is_empty() {
@@ -296,17 +318,22 @@ fn property(s: &mut String, a: &ArgDef) {
 ///
 /// # Errors
 ///
-/// A message when the JSON is malformed, the tool is unknown, a key does
-/// not name an argument, a value has the wrong shape, or the resulting
-/// command line does not parse (the parser's own message).
-pub fn to_argv(cmd: &Command, tool_name: &str, input: &str) -> Result<Vec<OsString>, String> {
+/// A [`kanna::Error`] that a driver can branch on with
+/// [`kind`](Error::kind) and [`arg`](Error::arg), and print as text or
+/// JSON like any other: [`ErrorKind::Custom`] when the JSON is malformed
+/// or the tool is unknown; [`ErrorKind::UnexpectedArgument`] (with the
+/// key as `arg`) when a key does not name an argument;
+/// [`ErrorKind::InvalidValue`] (with the key as `arg`) when a value has
+/// the wrong shape; and the parser's own error, untouched, when the
+/// resulting command line does not parse.
+pub fn to_argv(cmd: &Command, tool_name: &str, input: &str) -> Result<Vec<OsString>, Error> {
     let tool = tools(cmd)
         .into_iter()
         .find(|t| t.name == tool_name)
-        .ok_or_else(|| ["unknown tool '", tool_name, "'"].concat())?;
-    let value = json::parse(input)?;
+        .ok_or_else(|| Error::custom(["unknown tool '", tool_name, "'"].concat()))?;
+    let value = json::parse(input).map_err(Error::custom)?;
     let json::Value::Object(fields) = value else {
-        return Err("tool input must be a JSON object".to_owned());
+        return Err(Error::custom("tool input must be a JSON object"));
     };
     // Rebuild the argument list this tool exposes.
     let mut node = cmd.clone();
@@ -320,7 +347,7 @@ pub fn to_argv(cmd: &Command, tool_name: &str, input: &str) -> Result<Vec<OsStri
         );
         node = node
             .find_subcommand(word)
-            .ok_or_else(|| ["unknown subcommand '", word, "'"].concat())?
+            .ok_or_else(|| Error::custom(["unknown subcommand '", word, "'"].concat()))?
             .build();
     }
     visible.extend(node.args().iter().filter(|a| !a.is_hidden()).cloned());
@@ -332,17 +359,27 @@ pub fn to_argv(cmd: &Command, tool_name: &str, input: &str) -> Result<Vec<OsStri
             .iter()
             .enumerate()
             .find(|(_, a)| a.id() == key)
-            .ok_or_else(|| ["unknown argument '", key, "'"].concat())?;
-        let values = scalar_values(key, value, def)?;
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::UnexpectedArgument,
+                    ["unknown argument '", key, "'"].concat(),
+                )
+                .with_arg(key)
+            })?;
+        let values = scalar_values(key, value, def)
+            .map_err(|m| Error::new(ErrorKind::InvalidValue, m).with_arg(key))?;
         if def.is_positional() {
             positionals.push((index, values));
             continue;
         }
         if def.is_count() {
-            let n: usize = values
-                .first()
-                .and_then(|v| v.parse().ok())
-                .ok_or_else(|| ["'", key, "' must be a non-negative integer"].concat())?;
+            let n: usize = values.first().and_then(|v| v.parse().ok()).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidValue,
+                    ["'", key, "' must be a non-negative integer"].concat(),
+                )
+                .with_arg(key)
+            })?;
             for _ in 0..n {
                 argv.push(option_name(def));
             }
@@ -371,8 +408,7 @@ pub fn to_argv(cmd: &Command, tool_name: &str, input: &str) -> Result<Vec<OsStri
         argv.push(OsString::from("--"));
     }
     argv.extend(values.into_iter().map(OsString::from));
-    cmd.try_parse_args(argv.clone())
-        .map_err(|e| e.message().to_owned())?;
+    cmd.try_parse_args(argv.clone())?;
     Ok(argv)
 }
 
@@ -662,6 +698,47 @@ mod tests {
                     .arg(&files),
             )
             .subcommand(Subcommand::from(Command::new("hidden")).hidden())
+            .subcommand(
+                Subcommand::from(Command::new("setup").subcommand(Command::new("wizard")))
+                    .no_tool(),
+            )
+    }
+
+    #[test]
+    fn no_tool_subcommands_are_left_out() {
+        let names: Vec<String> = tools(&app()).into_iter().map(|t| t.name).collect();
+        assert!(
+            !names.iter().any(|n| n.starts_with("app_setup")),
+            "{names:?}"
+        );
+        let e = to_argv(&app(), "app_setup", "{}").unwrap_err();
+        assert_eq!(e.message(), "unknown tool 'app_setup'");
+    }
+
+    #[test]
+    fn unsigned_values_and_value_help_reach_the_schema() {
+        let width = Arg::new("width").value::<u8>().help("Columns");
+        let offset = Arg::new("offset").value::<i32>();
+        let unit = Arg::new("unit")
+            .value::<String>()
+            .possible_with_help([("c", "Celsius"), ("f", "Fahrenheit")])
+            .help("Scale");
+        let cmd = Command::new("t").arg(&width).arg(&offset).arg(&unit);
+        let schema = &tools(&cmd)[0].input_schema;
+        assert!(
+            schema.contains(r#""width":{"type":"integer","minimum":0,"description":"Columns"}"#),
+            "{schema}"
+        );
+        assert!(
+            schema.contains(r#""offset":{"type":"integer"}"#),
+            "{schema}"
+        );
+        assert!(
+            schema.contains(
+                r#""unit":{"type":"string","enum":["c","f"],"description":"Scale [possible values: c = Celsius, f = Fahrenheit]"}"#
+            ),
+            "{schema}"
+        );
     }
 
     #[test]
@@ -753,37 +830,37 @@ mod tests {
     #[test]
     fn to_argv_reports_problems() {
         let cmd = app();
+        let e = to_argv(&cmd, "nope", "{}").unwrap_err();
         assert_eq!(
-            to_argv(&cmd, "nope", "{}").unwrap_err(),
-            "unknown tool 'nope'"
+            (e.kind(), e.message()),
+            (ErrorKind::Custom, "unknown tool 'nope'")
         );
+        let e = to_argv(&cmd, "app", r#"{"bogus": 1}"#).unwrap_err();
+        assert_eq!(e.kind(), ErrorKind::UnexpectedArgument);
         assert_eq!(
-            to_argv(&cmd, "app", r#"{"bogus": 1}"#).unwrap_err(),
-            "unknown argument 'bogus'"
+            (e.arg(), e.message()),
+            (Some("bogus"), "unknown argument 'bogus'")
         );
+        let e = to_argv(&cmd, "app", r#"{"NAME": ["a"]}"#).unwrap_err();
+        assert_eq!(e.kind(), ErrorKind::InvalidValue);
         assert_eq!(
-            to_argv(&cmd, "app", r#"{"NAME": ["a"]}"#).unwrap_err(),
-            "'NAME' does not take a list"
+            (e.arg(), e.message()),
+            (Some("NAME"), "'NAME' does not take a list")
         );
-        assert!(
-            to_argv(&cmd, "app", r#"{"NAME": "x", "color": "sometimes"}"#)
-                .unwrap_err()
-                .starts_with("invalid value 'sometimes'")
-        );
-        assert!(
-            to_argv(&cmd, "app", "[1]")
-                .unwrap_err()
-                .contains("must be a JSON object")
-        );
-        assert!(
-            to_argv(&cmd, "app", r#"{"NAME": "x""#)
-                .unwrap_err()
-                .starts_with("invalid JSON")
-        );
-        // Parser errors are passed through.
+        // Parser errors are passed through with their kind and argument.
+        let e = to_argv(&cmd, "app", r#"{"NAME": "x", "color": "sometimes"}"#).unwrap_err();
+        assert_eq!(e.kind(), ErrorKind::InvalidValue);
+        assert_eq!(e.arg(), Some("color"));
+        assert!(e.message().starts_with("invalid value 'sometimes'"), "{e}");
+        let e = to_argv(&cmd, "app", "[1]").unwrap_err();
+        assert!(e.message().contains("must be a JSON object"));
+        let e = to_argv(&cmd, "app", r#"{"NAME": "x""#).unwrap_err();
+        assert!(e.message().starts_with("invalid JSON"), "{e}");
         let req = Arg::positional::<String>("NAME").required();
         let strict = Command::new("s").arg(&req);
-        assert!(to_argv(&strict, "s", "{}").unwrap_err().contains("<NAME>"));
+        let e = to_argv(&strict, "s", "{}").unwrap_err();
+        assert_eq!(e.kind(), ErrorKind::MissingRequired);
+        assert!(e.message().contains("<NAME>"));
         let strict_tools = tools(&strict);
         assert!(
             strict_tools[0]

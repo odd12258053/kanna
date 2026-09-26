@@ -19,10 +19,14 @@
 //! ```
 //!
 //! The tool names are the command paths joined with `_`: `units_length`,
-//! `units_mass`, `units_temp`, and also `units_tools`, `units_call` and
-//! `units_schema`, because every visible subcommand becomes a tool. The
-//! property names are the argument ids (the field names below); the
-//! global `--precision` appears in every tool.
+//! `units_mass` and `units_temp`. The `tools`, `call` and `schema`
+//! subcommands are marked `no_tool`: they stay in `--help` but are not
+//! offered to the agent, which would otherwise see the driver's own
+//! commands and could call `call` recursively. The property names are the
+//! argument ids (the field names below); the global `--precision` appears
+//! in every tool. Doc comments on the value enums' variants become the
+//! legend of the unit properties (`c = Celsius, ...`), and `long_about`
+//! on each converter tells the agent what the output line looks like.
 #![forbid(unsafe_code)]
 
 use std::ffi::OsString;
@@ -31,29 +35,57 @@ use kanna::{Cli, Error, ValueEnum};
 use kanna_schema::tool;
 
 kanna::value_enum! {
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Length {
+        /// millimetre
         Millimetre = "mm",
+        /// centimetre
         Centimetre = "cm",
+        /// metre
         Metre = "m",
+        /// kilometre
         Kilometre = "km",
+        /// inch
         Inch = "in",
+        /// foot
         Foot = "ft",
+        /// mile
         Mile = "mi",
     }
 }
 
 kanna::value_enum! {
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    #[derive(Debug)]
-    enum Mass { Gram = "g", Kilogram = "kg", Ounce = "oz", Pound = "lb" }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Mass {
+        /// gram
+        Gram = "g",
+        /// kilogram
+        Kilogram = "kg",
+        /// ounce
+        Ounce = "oz",
+        /// pound
+        Pound = "lb",
+    }
 }
 
 kanna::value_enum! {
-    #[derive(Clone, Copy, PartialEq, Eq)]
-    #[derive(Debug)]
-    enum Temperature { Celsius = "c", Fahrenheit = "f", Kelvin = "k" }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Temperature {
+        /// Celsius
+        Celsius = "c",
+        /// Fahrenheit
+        Fahrenheit = "f",
+        /// Kelvin
+        Kelvin = "k",
+    }
+}
+
+/// What every converter prints; part of the tool descriptions (a macro
+/// so that `concat!` can splice it into each `long_about`).
+macro_rules! output_note {
+    () => {
+        "Prints one line, `<value> <from> = <result> <to>`, for example `5 km = 3.11 mi`."
+    };
 }
 
 kanna::cli! {
@@ -82,14 +114,18 @@ kanna::cli! {
         /// Convert a temperature
         Temp(TempArgs),
         /// Print the tool definitions for an AI agent (Claude by default)
+        #[no_tool]
         Tools(ToolsArgs),
         /// Run a tool from its JSON input, as an agent would
+        #[no_tool]
         Call(CallArgs),
         /// Print the JSON description of this command
+        #[no_tool]
         Schema,
     }
 
     #[derive(Debug)]
+    #[long_about = concat!("Convert a length. ", output_note!())]
     struct LengthArgs {
         /// The quantity to convert
         #[positional]
@@ -103,6 +139,7 @@ kanna::cli! {
     }
 
     #[derive(Debug)]
+    #[long_about = concat!("Convert a mass. ", output_note!())]
     struct MassArgs {
         /// The quantity to convert
         #[positional]
@@ -116,6 +153,7 @@ kanna::cli! {
     }
 
     #[derive(Debug)]
+    #[long_about = concat!("Convert a temperature. ", output_note!())]
     struct TempArgs {
         /// The quantity to convert
         #[positional]
@@ -231,9 +269,11 @@ fn run(args: Args) -> Result<(), Error> {
         Cmd::Schema => print!("{}", kanna_schema::to_json_pretty(&cmd)),
         Cmd::Call(c) => {
             // JSON → argv, checked by parsing; then parse again into the
-            // typed `Args` and run it like a command line.
+            // typed `Args` and run it like a command line. The error keeps
+            // the parser's kind and argument, so a driver reading
+            // KANNA_ERROR_FORMAT=json output can branch on them.
             let argv: Vec<OsString> = tool::to_argv(&cmd, &c.tool, &c.input)
-                .map_err(|e| Error::custom(e).with_tip("run 'units tools' to see the tools"))?;
+                .map_err(|e| e.with_tip("run 'units tools' to see the tools"))?;
             if c.dry_run {
                 let words: Vec<String> = argv
                     .iter()
@@ -258,6 +298,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kanna::ErrorKind;
 
     #[test]
     fn definition_is_sound() {
@@ -280,46 +321,47 @@ mod tests {
     #[test]
     fn rejects_bad_input() {
         let e = Args::try_parse_args(["temp", "100", "-f", "c", "-t", "miles"]).unwrap_err();
-        assert_eq!(e.kind(), kanna::ErrorKind::InvalidValue);
+        assert_eq!(e.kind(), ErrorKind::InvalidValue);
         let e = Args::try_parse_args(["length", "5", "--from", "km"]).unwrap_err();
-        assert_eq!(e.kind(), kanna::ErrorKind::MissingRequired);
+        assert_eq!(e.kind(), ErrorKind::MissingRequired);
     }
 
     #[test]
-    fn every_visible_subcommand_is_a_tool() {
-        let names: Vec<String> = tool::tools(&Args::command())
-            .into_iter()
-            .map(|t| t.name)
-            .collect();
+    fn only_the_converters_are_tools() {
+        let tools = tool::tools(&Args::command());
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, ["units_length", "units_mass", "units_temp"]);
         assert_eq!(
-            names,
-            [
-                "units_length",
-                "units_mass",
-                "units_temp",
-                "units_tools",
-                "units_call",
-                "units_schema"
-            ]
+            tools[0].description,
+            concat!("Convert a length. ", output_note!())
+        );
+        // Still there for people.
+        let help = Args::command().render_help();
+        assert!(
+            help.contains("tools   Print the tool definitions"),
+            "{help}"
         );
     }
 
     #[test]
-    fn tool_schema_uses_ids_types_and_enums() {
+    fn tool_schema_uses_ids_types_enums_and_value_help() {
         let tools = tool::tools(&Args::command());
         let temp = tools.iter().find(|t| t.name == "units_temp").unwrap();
-        assert!(temp.input_schema.contains(r#""value":{"type":"number""#));
+        let schema = &temp.input_schema;
+        assert!(schema.contains(r#""value":{"type":"number""#), "{schema}");
         assert!(
-            temp.input_schema
-                .contains(r#""from":{"type":"string","enum":["c","f","k"]"#)
+            schema.contains(
+                r#""from":{"type":"string","enum":["c","f","k"],"description":"Unit of the input [possible values: c = Celsius, f = Fahrenheit, k = Kelvin]"}"#
+            ),
+            "{schema}"
         );
         assert!(
-            temp.input_schema
-                .contains(r#""precision":{"type":"integer""#)
+            schema.contains(r#""precision":{"type":"integer","minimum":0"#),
+            "{schema}"
         );
         assert!(
-            temp.input_schema
-                .contains(r#""required":["value","from","to"]"#)
+            schema.contains(r#""required":["value","from","to"]"#),
+            "{schema}"
         );
     }
 
@@ -338,15 +380,38 @@ mod tests {
         );
         let a = Args::try_parse_args(argv).unwrap();
         assert_eq!(convert(&a).unwrap(), "-40 c = -40.0 f");
+    }
 
+    #[test]
+    fn tool_errors_keep_kind_and_argument() {
+        let cmd = Args::command();
         let e = tool::to_argv(
             &cmd,
             "units_temp",
             r#"{"value": "hot", "from": "c", "to": "f"}"#,
         )
         .unwrap_err();
-        assert!(e.contains("hot"), "{e}");
-        let e = tool::to_argv(&cmd, "units_volume", "{}").unwrap_err();
-        assert!(e.contains("unknown tool"), "{e}");
+        assert_eq!(
+            (e.kind(), e.arg()),
+            (ErrorKind::InvalidValue, Some("value"))
+        );
+        let e = tool::to_argv(&cmd, "units_temp", r#"{"value": 1, "from": "c"}"#).unwrap_err();
+        assert_eq!(
+            (e.kind(), e.arg()),
+            (ErrorKind::MissingRequired, Some("to"))
+        );
+        let e = tool::to_argv(
+            &cmd,
+            "units_temp",
+            r#"{"value": 1, "from": "c", "to": "f", "unit": "x"}"#,
+        )
+        .unwrap_err();
+        assert_eq!(
+            (e.kind(), e.arg()),
+            (ErrorKind::UnexpectedArgument, Some("unit"))
+        );
+        // `no_tool` commands are not callable as tools.
+        let e = tool::to_argv(&cmd, "units_call", "{}").unwrap_err();
+        assert_eq!(e.message(), "unknown tool 'units_call'");
     }
 }

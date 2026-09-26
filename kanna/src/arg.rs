@@ -38,8 +38,10 @@ pub(crate) type Extract<T> = fn(&ArgDef, &[Stored]) -> Option<T>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ValueType {
-    /// Any built-in integer type.
+    /// Any built-in signed integer type.
     Integer,
+    /// Any built-in unsigned integer type (`u8` .. `u128`, `usize`).
+    Unsigned,
     /// `f32` or `f64`.
     Float,
     /// `bool`.
@@ -55,6 +57,7 @@ pub enum ValueType {
 fn value_type_of<U: Any>() -> ValueType {
     use std::any::TypeId;
     let id = TypeId::of::<U>();
+    // Signed first, unsigned second; the position tells them apart.
     let ints = [
         TypeId::of::<i8>(),
         TypeId::of::<i16>(),
@@ -69,8 +72,12 @@ fn value_type_of<U: Any>() -> ValueType {
         TypeId::of::<u128>(),
         TypeId::of::<usize>(),
     ];
-    if ints.contains(&id) {
-        ValueType::Integer
+    if let Some(i) = ints.iter().position(|t| *t == id) {
+        if i < 6 {
+            ValueType::Integer
+        } else {
+            ValueType::Unsigned
+        }
     } else if id == TypeId::of::<f32>() || id == TypeId::of::<f64>() {
         ValueType::Float
     } else if id == TypeId::of::<bool>() {
@@ -96,6 +103,10 @@ pub(crate) struct ValueDef {
     /// plus its help rendering. Makes the value optional.
     pub(crate) default_missing: Option<(ValueMaker, String)>,
     pub(crate) possible: Vec<String>,
+    /// Descriptions parallel to `possible` (`""` for none); empty when
+    /// no value has one. A plain `Vec<String>` so that it shares the
+    /// code already compiled for `possible`.
+    pub(crate) possible_help: Vec<String>,
     #[cfg(feature = "env")]
     pub(crate) env: Option<String>,
     pub(crate) completer: Option<Completer>,
@@ -328,6 +339,15 @@ impl ArgDef {
     /// The accepted values, if restricted.
     pub fn possible_values(&self) -> &[String] {
         self.value.as_ref().map_or(&[], |v| v.possible.as_slice())
+    }
+    /// Descriptions of the accepted values, parallel to
+    /// [`possible_values`](ArgDef::possible_values): `""` for a value
+    /// without one, and an empty slice when no value has one. They come
+    /// from a [`ValueEnum`]'s doc comments or [`Arg::possible_with_help`].
+    pub fn possible_value_help(&self) -> &[String] {
+        self.value
+            .as_ref()
+            .map_or(&[], |v| v.possible_help.as_slice())
     }
     /// The dynamic completion function, if one was set with
     /// [`Arg::complete_with`].
@@ -789,6 +809,7 @@ impl Arg<bool> {
             default: None,
             default_missing: None,
             possible: Vec::new(),
+            possible_help: Vec::new(),
             #[cfg(feature = "env")]
             env: None,
             completer: None,
@@ -803,11 +824,14 @@ impl Arg<bool> {
     pub fn value_enum<U: ValueEnum>(self) -> Arg<Option<U>> {
         self.value_with(|s| U::from_name(s).ok_or("unknown value"))
             .possible(U::names())
+            .possible_help_from::<U>()
     }
 
     /// A positional argument taking one of the values of a [`ValueEnum`].
     pub fn positional_enum<U: ValueEnum>(name: impl Into<String>) -> Arg<Option<U>> {
-        Arg::positional_with(name, |s| U::from_name(s).ok_or("unknown value")).possible(U::names())
+        Arg::positional_with(name, |s| U::from_name(s).ok_or("unknown value"))
+            .possible(U::names())
+            .possible_help_from::<U>()
     }
 }
 
@@ -872,6 +896,43 @@ impl<U: Any + Clone + Send + Sync> Arg<Option<U>> {
     {
         if let Some(vd) = &mut self.def.value {
             vd.possible = values.into_iter().map(Into::into).collect();
+        }
+        self
+    }
+
+    /// Restrict the accepted values and describe each one. The texts are
+    /// shown in `--help` (not `-h`) and become part of the argument's
+    /// description in agent tool definitions.
+    ///
+    /// ```
+    /// use kanna::Arg;
+    /// let unit = Arg::new("unit")
+    ///     .value::<String>()
+    ///     .possible_with_help([("c", "Celsius"), ("f", "Fahrenheit")]);
+    /// assert_eq!(unit.def().possible_values(), ["c", "f"]);
+    /// assert_eq!(unit.def().possible_value_help(), ["Celsius", "Fahrenheit"]);
+    /// ```
+    pub fn possible_with_help<I, S, T>(mut self, values: I) -> Arg<Option<U>>
+    where
+        I: IntoIterator<Item = (S, T)>,
+        S: Into<String>,
+        T: Into<String>,
+    {
+        if let Some(vd) = &mut self.def.value {
+            vd.possible.clear();
+            vd.possible_help.clear();
+            for (name, text) in values {
+                vd.possible.push(name.into());
+                vd.possible_help.push(text.into());
+            }
+        }
+        self
+    }
+
+    /// Copy the doc comments of a [`ValueEnum`]'s variants.
+    fn possible_help_from<E: ValueEnum>(mut self) -> Arg<Option<U>> {
+        if let Some(vd) = &mut self.def.value {
+            vd.possible_help = value_enum_help::<E>();
         }
         self
     }
@@ -953,6 +1014,13 @@ pub trait ValueEnum: Clone + Send + Sync + 'static {
     /// The name this value is written as on the command line.
     fn name(&self) -> &'static str;
 
+    /// A one-line description of the value, shown in `--help` and in
+    /// agent tool definitions. [`value_enum!`](crate::value_enum) and `#[derive(ValueEnum)]`
+    /// take it from the first line of the variant's doc comment.
+    fn help(&self) -> Option<&'static str> {
+        None
+    }
+
     /// The value spelled `name`, if any.
     fn from_name(name: &str) -> Option<Self> {
         Self::VALUES.iter().find(|v| v.name() == name).cloned()
@@ -964,14 +1032,33 @@ pub trait ValueEnum: Clone + Send + Sync + 'static {
     }
 }
 
+/// The help texts of `E`'s values, parallel to its names, or empty when
+/// no value has one.
+pub(crate) fn value_enum_help<E: ValueEnum>() -> Vec<String> {
+    if E::VALUES.iter().all(|v| v.help().is_none()) {
+        return Vec::new();
+    }
+    E::VALUES
+        .iter()
+        .map(|v| v.help().unwrap_or("").to_owned())
+        .collect()
+}
+
 /// Define an enum that implements [`ValueEnum`], `FromStr` and `Display`
-/// from one list of `Variant = "name"` pairs.
+/// from one list of `Variant = "name"` pairs. The first line of a doc
+/// comment on a variant is its [`help`](ValueEnum::help).
 ///
 /// ```
 /// kanna::value_enum! {
 ///     /// How much to say
 ///     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-///     pub enum Level { Quiet = "quiet", Normal = "normal", Loud = "loud" }
+///     pub enum Level {
+///         /// Errors only
+///         Quiet = "quiet",
+///         Normal = "normal",
+///         /// Everything, twice
+///         Loud = "loud",
+///     }
 /// }
 ///
 /// use kanna::{Arg, Command, ValueEnum};
@@ -980,20 +1067,23 @@ pub trait ValueEnum: Clone + Send + Sync + 'static {
 /// assert_eq!(cmd.try_parse_args(["--level", "loud"]).unwrap().get(&level), Level::Loud);
 /// assert!(cmd.try_parse_args(["--level", "shout"]).is_err());
 /// assert_eq!(Level::names(), ["quiet", "normal", "loud"]);
+/// assert_eq!(Level::Quiet.help(), Some("Errors only"));
+/// assert_eq!(Level::Normal.help(), None);
 /// ```
 ///
-/// The enum must derive or implement `Clone`.
+/// The enum must derive or implement `Clone`. Variants may carry other
+/// attributes; only `///` comments are read.
 #[macro_export]
 macro_rules! value_enum {
     (
         $(#[$meta:meta])*
         $vis:vis enum $Name:ident {
-            $( $(#[$vmeta:meta])* $Variant:ident = $name:literal ),+ $(,)?
+            $( $(#[$($vmeta:tt)*])* $Variant:ident = $name:literal ),+ $(,)?
         }
     ) => {
         $(#[$meta])*
         $vis enum $Name {
-            $( $(#[$vmeta])* $Variant ),+
+            $( $(#[$($vmeta)*])* $Variant ),+
         }
 
         impl $crate::ValueEnum for $Name {
@@ -1002,6 +1092,14 @@ macro_rules! value_enum {
             fn name(&self) -> &'static str {
                 match self {
                     $( $Name::$Variant => $name ),+
+                }
+            }
+
+            fn help(&self) -> Option<&'static str> {
+                match self {
+                    $( $Name::$Variant => $crate::__macro::doc_help(
+                        $crate::__value_enum_doc!($( [$($vmeta)*] )*)
+                    ) ),+
                 }
             }
         }
@@ -1020,5 +1118,17 @@ macro_rules! value_enum {
                 f.write_str(<$Name as $crate::ValueEnum>::name(self))
             }
         }
+    };
+}
+
+/// The first `///` line among a variant's attributes (`""` when there is
+/// none); other attributes are skipped.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __value_enum_doc {
+    () => { "" };
+    ([doc = $d:literal] $($rest:tt)*) => { $d };
+    ([$($other:tt)*] $($rest:tt)*) => {
+        $crate::__value_enum_doc!($($rest)*)
     };
 }

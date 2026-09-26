@@ -566,13 +566,16 @@ macro_rules! __cli_sub_settings {
     ($s:ident [hidden $(, $($rest:tt)*)?]) => {
         $s.hidden(); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
     };
+    ($s:ident [no_tool $(, $($rest:tt)*)?]) => {
+        $s.no_tool(); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
+    };
     ($s:ident [visible_alias = $v:literal $(, $($rest:tt)*)?]) => {
         $s.visible_alias($v); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
     };
     ($s:ident [$bad:ident $($rest:tt)*]) => {
         compile_error!(concat!(
             "unknown kanna subcommand setting `", stringify!($bad),
-            "`; expected one of: name, alias, visible_alias, hidden"
+            "`; expected one of: name, alias, visible_alias, hidden, no_tool"
         ));
     };
     ($s:ident [$($bad:tt)+]) => {

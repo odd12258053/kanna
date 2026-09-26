@@ -38,6 +38,7 @@ pub struct Common {
     #[cfg(feature = "env")]
     env: Option<&'static str>,
     possible: Vec<String>,
+    possible_help: Vec<String>,
     visible_aliases: Vec<&'static str>,
     long_help: Option<&'static str>,
     heading: Option<&'static str>,
@@ -90,6 +91,7 @@ impl Common {
             #[cfg(feature = "env")]
             env: None,
             possible: Vec::new(),
+            possible_help: Vec::new(),
             visible_aliases: Vec::new(),
             long_help: None,
             heading: None,
@@ -157,6 +159,7 @@ impl Common {
                 v.env = self.env.map(str::to_owned);
             }
             v.possible.clone_from(&self.possible);
+            v.possible_help.clone_from(&self.possible_help);
             v.delimiter = self.delimiter;
         }
     }
@@ -270,6 +273,7 @@ impl<T> FieldSpec<T> {
         T: ValueEnum,
     {
         self.common.possible = T::names();
+        self.common.possible_help = crate::arg::value_enum_help::<T>();
     }
     /// `visible_alias = "name"`.
     pub fn visible_alias(&mut self, name: &'static str) {
@@ -400,6 +404,7 @@ pub struct SubSpec {
     aliases: Vec<&'static str>,
     visible_aliases: Vec<&'static str>,
     hidden: bool,
+    no_tool: bool,
 }
 
 impl SubSpec {
@@ -413,6 +418,7 @@ impl SubSpec {
             aliases: Vec::new(),
             visible_aliases: Vec::new(),
             hidden: false,
+            no_tool: false,
         }
     }
     /// Append one doc comment line.
@@ -434,6 +440,10 @@ impl SubSpec {
     /// `hidden`.
     pub fn hidden(&mut self) {
         self.hidden = true;
+    }
+    /// `no_tool`.
+    pub fn no_tool(&mut self) {
+        self.no_tool = true;
     }
     /// `visible_alias = "x"`.
     pub fn visible_alias(&mut self, name: &'static str) {
@@ -465,6 +475,9 @@ impl SubSpec {
         }
         if self.hidden {
             sub = sub.hidden();
+        }
+        if self.no_tool {
+            sub = sub.no_tool();
         }
         sub
     }
@@ -569,6 +582,13 @@ impl CommandSpec {
         }
         cmd
     }
+}
+
+/// The help of a `value_enum!` variant from its first doc line: trimmed,
+/// or `None` when there is no comment.
+pub fn doc_help(raw: &'static str) -> Option<&'static str> {
+    let text = raw.trim();
+    if text.is_empty() { None } else { Some(text) }
 }
 
 /// Normalise a raw doc comment: strip the single leading space of each line.

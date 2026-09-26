@@ -11,10 +11,37 @@ migration note here.
 
 ### Added
 
+* Descriptions for possible values (ADR-0021): a `///` comment on a
+  `value_enum!` or `#[derive(ValueEnum)]` variant is its
+  `ValueEnum::help()`, `Arg::possible_with_help([("c", "Celsius")])`
+  does the same for plain values, `ArgDef::possible_value_help()` reads
+  them back. `--help` (not `-h`) shows `[possible values: c = Celsius,
+  f]`; tool definitions append the same legend to the property
+  description.
+* `no_tool` on subcommands (`Subcommand::no_tool()`, `#[no_tool]` in
+  `cli!`, `#[kanna(no_tool)]` in derive): listed in help and completion
+  but not offered to AI agents as a tool.
+* `ValueType::Unsigned` for `u8` .. `u128` and `usize`; tool schemas give
+  such arguments `minimum: 0`.
+* A `MissingRequired` error names the argument (`Error::arg`) when
+  exactly one is missing.
 * `examples/units`: a unit converter an AI agent can drive. Shows
   `kanna_schema::tool` end to end: `tools` prints Claude / MCP tool
   definitions, `call` turns a tool's JSON input into a command line with
   `to_argv` and runs it, `schema` prints the JSON description.
+
+### Changed
+
+* **Breaking:** `kanna_schema::tool::to_argv` returns
+  `Result<_, kanna::Error>` instead of `Result<_, String>`, so a driver
+  can branch on `kind()` and `arg()` and print the error as text or JSON
+  like any other. Parser errors pass through untouched; a bad key is
+  `UnexpectedArgument` and a wrong value shape `InvalidValue`, both with
+  the key as `arg`; malformed JSON and an unknown tool are `Custom`.
+* **Breaking:** the `kanna-schema` document is format 3: `value_type`
+  may be `"unsigned"` (signed types stay `"integer"`), arguments carry
+  `possible_value_help` (an object of value → text) and subcommands
+  `no_tool`.
 
 ## [0.1.0] - 2026-09-26
 

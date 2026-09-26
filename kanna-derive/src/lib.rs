@@ -80,7 +80,8 @@ pub fn derive_commands(input: TokenStream) -> TokenStream {
 
 /// Derive `kanna::ValueEnum`, `FromStr` and `Display` for a fieldless
 /// enum. Each variant is written in kebab-case on the command line unless
-/// `#[kanna(name = "x")]` says otherwise. The enum must be `Clone`.
+/// `#[kanna(name = "x")]` says otherwise; the first line of a variant's
+/// doc comment is its help. The enum must be `Clone`.
 #[proc_macro_derive(ValueEnum, attributes(kanna))]
 pub fn derive_value_enum(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
@@ -102,6 +103,7 @@ fn expand_value_enum(input: &DeriveInput) -> Result<TokenStream2> {
     let name = &input.ident;
     let mut idents = Vec::new();
     let mut names = Vec::new();
+    let mut helps = Vec::new();
     for v in variants {
         if !matches!(v.fields, Fields::Unit) {
             return Err(Error::new(
@@ -127,6 +129,14 @@ fn expand_value_enum(input: &DeriveInput) -> Result<TokenStream2> {
         }
         idents.push(v.ident.clone());
         names.push(text);
+        // The first doc line is the help, as in `value_enum!`.
+        let doc = attrs.docs.first().map(|d| d.value()).unwrap_or_default();
+        let doc = doc.trim();
+        helps.push(if doc.is_empty() {
+            quote! { None }
+        } else {
+            quote! { Some(#doc) }
+        });
     }
     Ok(quote! {
         impl ::kanna::ValueEnum for #name {
@@ -135,6 +145,12 @@ fn expand_value_enum(input: &DeriveInput) -> Result<TokenStream2> {
             fn name(&self) -> &'static str {
                 match self {
                     #( #name::#idents => #names, )*
+                }
+            }
+
+            fn help(&self) -> Option<&'static str> {
+                match self {
+                    #( #name::#idents => #helps, )*
                 }
             }
         }
@@ -324,7 +340,7 @@ const COMMAND_SETTINGS: &[&str] = &[
     "example",
 ];
 
-const VARIANT_SETTINGS: &[&str] = &["name", "alias", "visible_alias", "hidden"];
+const VARIANT_SETTINGS: &[&str] = &["name", "alias", "visible_alias", "hidden", "no_tool"];
 
 /// How a field maps onto an argument, mirroring `__cli_fields!`.
 enum Kind {

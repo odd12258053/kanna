@@ -290,7 +290,25 @@ fn describe(a: &ArgDef, long: bool) -> String {
             extra(["[default: ", d, "]"].concat());
         }
         if !v.possible.is_empty() {
-            extra(["[possible values: ", &v.possible.join(", "), "]"].concat());
+            // `--help` adds each value's description, when there is one.
+            let list = if long && !v.possible_help.is_empty() {
+                let described: Vec<String> = v
+                    .possible
+                    .iter()
+                    .zip(&v.possible_help)
+                    .map(|(n, t)| {
+                        if t.is_empty() {
+                            n.clone()
+                        } else {
+                            [n, " = ", t].concat()
+                        }
+                    })
+                    .collect();
+                described.join(", ")
+            } else {
+                v.possible.join(", ")
+            };
+            extra(["[possible values: ", &list, "]"].concat());
         }
         #[cfg(feature = "env")]
         if let Some(var) = &v.env {

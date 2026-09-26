@@ -29,7 +29,7 @@ pub const JSON_SCHEMA: &str = include_str!("schema.json");
 
 /// The version of the document format, written into every document as
 /// `"format"`.
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 
 /// Render `cmd` (and every subcommand, built if lazy) as compact JSON.
 pub fn to_json(cmd: &Command) -> String {
@@ -205,6 +205,8 @@ impl Writer {
                     o.w.array(s.visible_aliases(), |w, a| w.string(a));
                     o.key("hidden");
                     o.w.bool(s.is_hidden());
+                    o.key("no_tool");
+                    o.w.bool(s.is_no_tool());
                     o.key("about");
                     o.w.opt_string(s.summary());
                     o.key("command");
@@ -275,6 +277,15 @@ impl Writer {
             o.w.opt_string(a.default_missing_text());
             o.key("possible_values");
             o.w.array(a.possible_values(), |w, s| w.string(s));
+            o.key("possible_value_help");
+            o.w.object(|o| {
+                for (name, text) in a.possible_values().iter().zip(a.possible_value_help()) {
+                    if !text.is_empty() {
+                        o.key(name);
+                        o.w.string(text);
+                    }
+                }
+            });
             o.key("env");
             #[cfg(feature = "env")]
             o.w.opt_string(a.env());
@@ -321,6 +332,7 @@ impl Writer {
 pub(crate) fn value_type_name(t: ValueType) -> &'static str {
     match t {
         ValueType::Integer => "integer",
+        ValueType::Unsigned => "unsigned",
         ValueType::Float => "float",
         ValueType::Boolean => "boolean",
         ValueType::String => "string",
@@ -370,7 +382,7 @@ mod tests {
             .help("How\nmany \"times\"");
         let mode = Arg::new("mode")
             .value::<String>()
-            .possible(["a", "b"])
+            .possible_with_help([("a", "Plan A")])
             .hidden();
         let json = Arg::new("json");
         let yaml = Arg::new("yaml");
@@ -393,18 +405,24 @@ mod tests {
                     .alias("l")
                     .hidden(),
             )
+            .subcommand(Subcommand::from(Command::new("setup")).no_tool())
     }
 
     #[test]
     fn compact_document_shape() {
         let json = to_json(&sample());
-        assert!(json.starts_with(r#"{"format":2,"name":"app","version":"1.0","about":"About","#));
+        assert!(json.starts_with(r#"{"format":3,"name":"app","version":"1.0","about":"About","#));
+        assert!(json.contains(r#""id":"number","long":"number","short":"n""#));
+        assert!(json.contains(r#""value_type":"unsigned""#));
         assert!(json.contains(r#""help":"How\nmany \"times\"""#));
-        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_type":"string","value_optional":false,"required":false,"many":false,"count":false,"last_wins":false,"greedy":false,"trailing":false,"delimiter":null,"hidden":true,"global":false,"help":null,"long_help":null,"help_heading":null,"default":null,"default_missing":null,"possible_values":["a","b"],"env":null,"dynamic_completion":false,"requires":[],"conflicts_with":[],"required_unless":[],"required_if_eq":[],"requires_if":[]}"#));
+        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_type":"string","value_optional":false,"required":false,"many":false,"count":false,"last_wins":false,"greedy":false,"trailing":false,"delimiter":null,"hidden":true,"global":false,"help":null,"long_help":null,"help_heading":null,"default":null,"default_missing":null,"possible_values":["a"],"possible_value_help":{"a":"Plan A"},"env":null,"dynamic_completion":false,"requires":[],"conflicts_with":[],"required_unless":[],"required_if_eq":[],"requires_if":[]}"#));
         assert!(json.contains(r#""groups":[{"name":"fmt","members":["json","yaml"],"required":false,"exclusive":true}]"#));
         assert!(json.contains(r#""requires":[["json","number"]]"#));
         assert!(json.contains(
-            r#""name":"lazy","aliases":["l"],"visible_aliases":[],"hidden":true,"about":null,"command":{"name":"lazy""#
+            r#""name":"lazy","aliases":["l"],"visible_aliases":[],"hidden":true,"no_tool":false,"about":null,"command":{"name":"lazy""#
+        ));
+        assert!(json.contains(
+            r#""name":"setup","aliases":[],"visible_aliases":[],"hidden":false,"no_tool":true,"about":null"#
         ));
         assert!(json.contains(r#""id":"FILE","long":null,"short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":true"#));
         assert!(json.contains(r#""dynamic_completion":true"#));

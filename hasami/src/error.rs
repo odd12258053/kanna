@@ -53,13 +53,23 @@ pub enum ErrorKind {
 pub struct Error {
     kind: ErrorKind,
     message: String,
-    tip: Option<String>,
-    usage: Option<String>,
-    source: Option<Box<dyn StdError + Send + Sync + 'static>>,
+    /// The less common fields, boxed so that `Result<T, Error>` stays
+    /// small (clippy's `result_large_err` threshold is 128 bytes).
+    details: Option<Box<Details>>,
     /// The command the error belongs to, so help and usage can be
     /// re-rendered with colour at print time.
     #[cfg(feature = "color")]
     help: Option<Box<HelpContext>>,
+}
+
+/// Optional parts of an [`Error`].
+#[derive(Default)]
+struct Details {
+    tip: Option<String>,
+    usage: Option<String>,
+    /// The id of the argument the error is about, when known.
+    arg: Option<String>,
+    source: Option<Box<dyn StdError + Send + Sync + 'static>>,
 }
 
 #[cfg(feature = "color")]
@@ -75,7 +85,7 @@ impl fmt::Debug for Error {
         f.debug_struct("Error")
             .field("kind", &self.kind)
             .field("message", &self.message)
-            .field("tip", &self.tip)
+            .field("tip", &self.tip())
             .finish_non_exhaustive()
     }
 }
@@ -87,9 +97,7 @@ impl Error {
         Error {
             kind,
             message: message.into(),
-            tip: None,
-            usage: None,
-            source: None,
+            details: None,
             #[cfg(feature = "color")]
             help: None,
         }
@@ -102,25 +110,37 @@ impl Error {
 
     /// Attach a "tip:" line telling the user how to fix the problem.
     pub fn with_tip(mut self, tip: impl Into<String>) -> Error {
-        self.tip = Some(tip.into());
+        self.details_mut().tip = Some(tip.into());
         self
     }
 
     /// Attach a usage line, shown after the message.
     pub fn with_usage(mut self, usage: impl Into<String>) -> Error {
-        self.usage = Some(usage.into());
+        self.details_mut().usage = Some(usage.into());
+        self
+    }
+
+    /// Record which argument (by id) the error is about. The parser sets
+    /// this for errors that concern one argument; it is reported by
+    /// [`arg`](Error::arg) and in [`to_json`](Error::to_json).
+    pub fn with_arg(mut self, id: impl Into<String>) -> Error {
+        self.details_mut().arg = Some(id.into());
         self
     }
 
     /// Attach an underlying error.
     pub fn with_source(mut self, source: impl StdError + Send + Sync + 'static) -> Error {
-        self.source = Some(Box::new(source));
+        self.details_mut().source = Some(Box::new(source));
         self
     }
 
+    fn details_mut(&mut self) -> &mut Details {
+        self.details.get_or_insert_with(Box::default)
+    }
+
     pub(crate) fn set_usage_if_missing(&mut self, usage: impl FnOnce() -> String) {
-        if self.usage.is_none() && self.kind.is_usage_error() {
-            self.usage = Some(usage());
+        if self.usage().is_none() && self.kind.is_usage_error() {
+            self.details_mut().usage = Some(usage());
         }
     }
 
@@ -180,11 +200,50 @@ impl Error {
     }
     /// The tip, if any.
     pub fn tip(&self) -> Option<&str> {
-        self.tip.as_deref()
+        self.details.as_ref()?.tip.as_deref()
     }
     /// The usage line, if any.
     pub fn usage(&self) -> Option<&str> {
-        self.usage.as_deref()
+        self.details.as_ref()?.usage.as_deref()
+    }
+    /// The id of the argument the error is about, if known.
+    pub fn arg(&self) -> Option<&str> {
+        self.details.as_ref()?.arg.as_deref()
+    }
+
+    /// The error as one JSON object (feature `json`), for programs and
+    /// agents that read errors rather than people:
+    ///
+    /// ```text
+    /// {"kind":"invalid_value","exit_code":2,"arg":"number",
+    ///  "message":"invalid value 'x' for '--number <NUMBER>': ...",
+    ///  "tip":null,"usage":"app [OPTIONS]"}
+    /// ```
+    ///
+    /// `kind` is [`ErrorKind::name`]. For help and version requests
+    /// `message` holds the text that would have been printed.
+    #[cfg(feature = "json")]
+    pub fn to_json(&self) -> String {
+        let mut s = String::from("{\"kind\":");
+        json_str(&mut s, self.kind.name());
+        s.push_str(",\"exit_code\":");
+        s.push_str(if self.is_display() { "0" } else { "2" });
+        for (key, value) in [
+            ("arg", self.arg()),
+            ("message", Some(self.message.as_str())),
+            ("tip", self.tip()),
+            ("usage", self.usage()),
+        ] {
+            s.push_str(",\"");
+            s.push_str(key);
+            s.push_str("\":");
+            match value {
+                Some(v) => json_str(&mut s, v),
+                None => s.push_str("null"),
+            }
+        }
+        s.push('}');
+        s
     }
 
     /// `true` for help and version requests, which are not failures.
@@ -205,6 +264,16 @@ impl Error {
     /// stream is a terminal (see [`Styles`](crate::Styles)).
     pub fn print(&self) -> std::io::Result<()> {
         use std::io::Write;
+        #[cfg(feature = "json")]
+        if !self.is_display()
+            && std::env::var_os("HASAMI_ERROR_FORMAT").is_some_and(|v| v == "json")
+        {
+            let err = std::io::stderr();
+            let mut err = err.lock();
+            err.write_all(self.to_json().as_bytes())?;
+            err.write_all(b"\n")?;
+            return err.flush();
+        }
         if self.is_display() {
             let text = self.render(&self.styles_for(crate::Stream::Stdout));
             let out = std::io::stdout();
@@ -243,7 +312,7 @@ impl Error {
         s.push_str(st.reset());
         s.push(' ');
         s.push_str(&self.message);
-        if let Some(tip) = &self.tip {
+        if let Some(tip) = self.tip() {
             s.push_str("\n\n  ");
             s.push_str(st.tip());
             s.push_str("tip:");
@@ -251,7 +320,7 @@ impl Error {
             s.push(' ');
             s.push_str(tip);
         }
-        if let Some(usage) = &self.usage {
+        if let Some(usage) = self.usage() {
             s.push_str("\n\n");
             s.push_str(st.header());
             s.push_str("Usage:");
@@ -262,7 +331,7 @@ impl Error {
                 .help
                 .as_ref()
                 .map(|h| crate::help::render_usage_styled(&h.cmd, &h.path, st))
-                .unwrap_or_else(|| usage.clone());
+                .unwrap_or_else(|| usage.to_owned());
             s.push_str(usage);
             if cfg!(feature = "help") {
                 s.push_str("\n\nFor more information, try '");
@@ -285,6 +354,29 @@ impl Error {
 }
 
 impl ErrorKind {
+    /// The kind as a stable `snake_case` name (`unknown_option`,
+    /// `invalid_value`, ...), used by [`Error::to_json`].
+    pub fn name(self) -> &'static str {
+        match self {
+            ErrorKind::UnknownOption => "unknown_option",
+            ErrorKind::UnknownSubcommand => "unknown_subcommand",
+            ErrorKind::UnexpectedArgument => "unexpected_argument",
+            ErrorKind::MissingValue => "missing_value",
+            ErrorKind::UnexpectedValue => "unexpected_value",
+            ErrorKind::InvalidValue => "invalid_value",
+            ErrorKind::MissingRequired => "missing_required",
+            ErrorKind::MissingSubcommand => "missing_subcommand",
+            ErrorKind::Conflict => "conflict",
+            ErrorKind::Repeated => "repeated",
+            ErrorKind::HelpOnMissingArgs => "help_on_missing_args",
+            ErrorKind::NonUnicode => "non_unicode",
+            ErrorKind::DisplayHelp => "display_help",
+            ErrorKind::DisplayVersion => "display_version",
+            ErrorKind::Io => "io",
+            ErrorKind::Custom => "custom",
+        }
+    }
+
     fn is_usage_error(self) -> bool {
         !matches!(
             self,
@@ -303,11 +395,33 @@ impl fmt::Display for Error {
     }
 }
 
+/// Append `s` as a JSON string literal.
+#[cfg(feature = "json")]
+fn json_str(out: &mut String, s: &str) {
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+}
+
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.source
-            .as_deref()
-            .map(|e| e as &(dyn StdError + 'static))
+        self.details
+            .as_ref()?
+            .source
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn StdError + 'static))
     }
 }
 

@@ -23,12 +23,14 @@ suggest = []
 color = []
 # Environment variable fallback for option values.
 env = []
+# `Error::to_json` and `HASAMI_ERROR_FORMAT=json` for machine-readable errors.
+json = []
 # `#[derive(Args)]` (pulls in syn; isolated in hasami-derive).
 derive = ["dep:hasami-derive"]
 # Everything except `derive`. Shell completion, documentation and schema
 # generation live in the `hasami-complete`, `hasami-doc` and `hasami-schema`
 # crates, which depend on this one (see ADR-0015).
-full = ["help", "suggest", "color", "env"]
+full = ["help", "suggest", "color", "env", "json"]
 
 [dependencies]
 hasami-core = { workspace = true }
@@ -39,6 +41,7 @@ hasami-complete = { path = "../hasami-complete", version = "0.1.0" }
 hasami-doc = { path = "../hasami-doc", version = "0.1.0" }
 hasami-schema = { path = "../hasami-schema", version = "0.1.0" }
 trycmd = { version = "0.15", features = ["examples"] }
+trybuild = "1.0"
 
 [[example]]
 name = "derive"
@@ -51,6 +54,10 @@ required-features = ["env"]
 [[test]]
 name = "snapshots"
 required-features = ["help"]
+
+[[test]]
+name = "ui"
+required-features = ["derive"]
 
 [lints]
 workspace = true

@@ -21,21 +21,22 @@ options, one `u32` with a default, one `OsString` option, one
 |---------|--------------:|-------------:|-------------------:|
 | hasami-core (imperative) | 13.5 KiB | 13.5 KiB | 0 |
 | hasami builder, no features | 47.5 KiB | 57.1 KiB | 0 |
-| hasami builder, `help` | 58.1 KiB | 71.8 KiB | 0 |
-| hasami builder, `help + suggest` | 63.6 KiB | 77.7 KiB | 0 |
-| hasami builder, `full` (help, suggest, color, env) | 72.3 KiB | 87.6 KiB | 0 |
-| hasami `cli!`, `help` | 63.7 KiB | 79.3 KiB | 0 |
-| hasami `cli!`, `full` | 78.1 KiB | 94.8 KiB | 0 |
-| hasami derive, `help` | 63.7 KiB | 79.2 KiB | 4 (build-time only) |
+| hasami builder, `help` | 58.1 KiB | 74.1 KiB | 0 |
+| hasami builder, `help + suggest` | 63.6 KiB | 80.1 KiB | 0 |
+| hasami builder, `full` (help, suggest, color, env, json) | 72.3 KiB | 93.2 KiB | 0 |
+| hasami `cli!`, `help` | 63.7 KiB | 81.4 KiB | 0 |
+| hasami `cli!`, `full` | 78.1 KiB | 100.4 KiB | 0 |
+| hasami derive, `help` | 63.7 KiB | 81 KiB | 4 (build-time only) |
 | clap builder, minimal (`std, help, usage, error-context`) | 199.0 KiB | 199.0 KiB | 3 |
 | clap builder, default features (adds `color`, `suggestions`) | 214.1 KiB | 214.1 KiB | 11 |
 | clap derive, default features | 225.1 KiB | 225.1 KiB | 19 |
 
 The parity features cost 13.7 KiB on the `help` build (ADR-0018 has the
-breakdown). hasami with every feature on is now 0.44 of clap with the
-fewest features on, and 0.41 of clap with its defaults; against a
-comparable feature set (hasami `full` versus clap default) the saving is
-about 126 KiB per binary. The `decl[help]` budget was raised from 60 to
+breakdown) and the AI-oriented additions another 2.3 KiB, plus 5.6 KiB
+for the `json` feature in `full` (ADR-0019). hasami with every feature
+on is now 0.47 of clap with the fewest features on, and 0.44 of clap
+with its defaults; against a comparable feature set (hasami `full`
+versus clap default) the saving is about 120 KiB per binary. The `decl[help]` budget was raised from 60 to
 75 KiB to admit this; the `full / clap < 0.5` gate is unchanged.
 
 ### Clean build time

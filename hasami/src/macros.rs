@@ -52,7 +52,9 @@
 /// `long_about = expr`, `before_help = expr`, `after_help = expr`,
 /// `disable_help`, `disable_version`, `args_override_self`,
 /// `arg_required_else_help`, `infer_long_args`, `infer_subcommands`,
-/// `allow_external_subcommands`, `term_width = expr`.
+/// `allow_external_subcommands`, `term_width = expr`, `example = expr`
+/// (repeatable; see [`Command::example`](crate::Command::example)).
+/// An unknown setting is a compile error naming the valid ones.
 /// The doc comment is the `about` text. The command name defaults to
 /// `CARGO_PKG_NAME`.
 ///
@@ -395,6 +397,15 @@ macro_rules! __cli_field_settings {
     ($s:ident [requires_if = [$a:literal, $b:literal] $(, $($rest:tt)*)?]) => {
         $s.requires_if(&[$a, $b]); $crate::__cli_field_settings!($s [$($($rest)*)?]);
     };
+    ($s:ident [$bad:ident $($rest:tt)*]) => {
+        compile_error!(concat!(
+            "unknown hasami field setting `", stringify!($bad),
+            "`; expected one of: long, short, alias, short_alias, visible_alias, hidden, global, positional, count, required, value_name, default, default_missing, env, possible, value_enum, help, long_help, help_heading, last_wins, greedy, trailing, delimiter, requires, conflicts_with, required_unless, required_if_eq, requires_if, subcommand, flatten"
+        ));
+    };
+    ($s:ident [$($bad:tt)+]) => {
+        compile_error!(concat!("malformed hasami field setting `", stringify!($($bad)+), "`"));
+    };
 }
 
 #[doc(hidden)]
@@ -448,6 +459,18 @@ macro_rules! __cli_cmd_settings {
     };
     ($s:ident [term_width = $v:expr $(, $($rest:tt)*)?]) => {
         $s.term_width($v); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [example = $v:expr $(, $($rest:tt)*)?]) => {
+        $s.example($v); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [$bad:ident $($rest:tt)*]) => {
+        compile_error!(concat!(
+            "unknown hasami command setting `", stringify!($bad),
+            "`; expected one of: name, version, long_version, about, long_about, before_help, after_help, example, disable_help, disable_version, args_override_self, arg_required_else_help, infer_long_args, infer_subcommands, allow_external_subcommands, term_width"
+        ));
+    };
+    ($s:ident [$($bad:tt)+]) => {
+        compile_error!(concat!("malformed hasami command setting `", stringify!($($bad)+), "`"));
     };
 }
 
@@ -545,6 +568,15 @@ macro_rules! __cli_sub_settings {
     };
     ($s:ident [visible_alias = $v:literal $(, $($rest:tt)*)?]) => {
         $s.visible_alias($v); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [$bad:ident $($rest:tt)*]) => {
+        compile_error!(concat!(
+            "unknown hasami subcommand setting `", stringify!($bad),
+            "`; expected one of: name, alias, visible_alias, hidden"
+        ));
+    };
+    ($s:ident [$($bad:tt)+]) => {
+        compile_error!(concat!("malformed hasami subcommand setting `", stringify!($($bad)+), "`"));
     };
 }
 

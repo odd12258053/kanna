@@ -46,6 +46,7 @@
 //! | `suggest`  | no      | "a similar argument exists" tips |
 //! | `color`    | no      | ANSI colour in help and errors |
 //! | `env`      | no      | [`Arg::env`] fallback |
+//! | `json`     | no      | [`Error::to_json`] and `HASAMI_ERROR_FORMAT=json` |
 //! | `derive`   | no      | `#[derive(Args)]` |
 //!
 //! Shell completion, documentation and JSON schema generation are separate
@@ -74,7 +75,7 @@ mod style;
 mod suggest;
 mod traits;
 
-pub use arg::{Arg, ArgDef, Completer, Relation, ValueEnum};
+pub use arg::{Arg, ArgDef, Completer, Relation, ValueEnum, ValueType};
 pub use command::{Command, Group, Subcommand};
 pub use error::{Error, ErrorKind};
 pub use matches::{Matches, Source};

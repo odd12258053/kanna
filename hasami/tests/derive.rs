@@ -416,3 +416,19 @@ fn flatten_through_derive() {
             .contains("-c, --config <CONFIG>  Config file")
     );
 }
+
+/// With examples
+#[derive(Args)]
+#[hasami(name = "ex", example = "ex --n 1", example = "ex --n x")]
+struct Ex {
+    /// N
+    n: Option<u32>,
+}
+
+#[test]
+fn example_setting_through_derive() {
+    let cmd = Ex::command();
+    assert_eq!(cmd.get_examples(), ["ex --n 1", "ex --n x"]);
+    assert_eq!(cmd.check_examples().unwrap_err().len(), 1);
+    assert_eq!(Ex::try_parse_args(["--n", "1"]).unwrap().n, Some(1));
+}

@@ -27,3 +27,4 @@ Numbers are never reused. A superseded ADR keeps its file and gets
 | [0016](0016-generators.md) | Completion, documentation and schema generators | Accepted |
 | [0017](0017-repeats-are-errors-and-definition-validation.md) | Repeated arguments are errors; definitions are validated | Accepted |
 | [0018](0018-clap-parity-features.md) | Closing the feature gaps against clap (and the size budget change) | Accepted |
+| [0019](0019-ai-oriented-features.md) | Features for CLIs written by, and used by, AI agents | Accepted |

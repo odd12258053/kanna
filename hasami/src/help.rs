@@ -177,6 +177,18 @@ pub(crate) fn render_help_styled(cmd: &Command, path: &str, st: &Styles, long: b
         section(&mut out, title, rows, st, width);
     }
 
+    if !cmd.examples.is_empty() {
+        out.push('\n');
+        out.push_str(st.header());
+        out.push_str("Examples:");
+        out.push_str(st.reset());
+        out.push('\n');
+        for ex in &cmd.examples {
+            pad(&mut out, INDENT);
+            out.push_str(ex);
+            out.push('\n');
+        }
+    }
     if let Some(after) = &cmd.after_help {
         out.push('\n');
         out.push_str(&wrap(after, width));

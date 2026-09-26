@@ -8,9 +8,9 @@ A layered command line argument parser for Rust.
 | Layer | Crate / feature | What you get | Cost on the sample CLI¹ |
 |-------|-----------------|--------------|------------------------:|
 | 1. Lexer | `hasami-core` | GNU/POSIX-correct `Parser::next()` loop, `OsString` values, zero dependencies, one file, no `unsafe` | 13.5 KiB, 0.6 s build |
-| 2. Builder | `hasami` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings and wrapping, errors with tips, definition validation | 71.8 KiB, 0.8 s |
-| 3. `cli!` | `hasami` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 79.3 KiB, 0.8 s |
-| 4. Derive | `hasami` + `derive` | `#[derive(Args)]`, `#[derive(Commands)]`, `#[derive(ValueEnum)]` with the same semantics as `cli!` | 79.2 KiB, 2.3 s |
+| 2. Builder | `hasami` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings, examples and wrapping, errors with tips, definition validation | 74.1 KiB, 0.9 s |
+| 3. `cli!` | `hasami` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 81.4 KiB, 0.9 s |
+| 4. Derive | `hasami` + `derive` | `#[derive(Args)]`, `#[derive(Commands)]`, `#[derive(ValueEnum)]` with the same semantics as `cli!` | 81 KiB, 2.3 s |
 | + | `hasami-complete`, `hasami-doc`, `hasami-schema` | Shell completion (5 shells, static and dynamic), manpage / Markdown / HTML, JSON description | separate crates |
 
 ¹ Binary size delta over an empty `main`, clean dev build time; full tables [below](#how-it-compares).
@@ -157,7 +157,13 @@ hasami_complete::dynamic::complete_from_env(&cmd);          // answer shell requ
 let bash = hasami_complete::generate(hasami_complete::Shell::Bash, &cmd);
 let man = hasami_doc::manpage(&cmd);
 let json = hasami_schema::to_json(&cmd);                   // everything the parser accepts
+let tools = hasami_schema::tool::tools(&cmd);              // Claude / MCP tool definitions
+let argv = hasami_schema::tool::to_argv(&cmd, "greet", r#"{"name": "bob"}"#); // a tool call → argv
 ```
+
+Programs meant to be driven by an agent can also set
+`HASAMI_ERROR_FORMAT=json` (feature `json`) to get errors as one JSON
+object on stderr.
 
 `hasami/examples/extras.rs` shows all three; `hasami/examples/{core,builder,macro,derive}.rs` show each layer.
 More in the same directory: `values` (typed values, custom parsers, `--color[=WHEN]`,
@@ -179,8 +185,9 @@ a `wc` on the bare lexer, a grep with the builder, a todo list with `cli!` and a
 | `suggest` | | "a similar argument exists" tips (Jaro-Winkler, no deps) |
 | `color` | | ANSI colour honouring `NO_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`, TTY |
 | `env` | | `Arg::env("VAR")` fallback |
+| `json` | | `Error::to_json`, `HASAMI_ERROR_FORMAT=json` |
 | `derive` | | `#[derive(Args)]`, `#[derive(Commands)]` (pulls in syn) |
-| `full` | | `help + suggest + color + env` |
+| `full` | | `help + suggest + color + env + json` |
 
 With no features enabled `hasami` has **zero** third-party dependencies;
 CI enforces it.
@@ -199,10 +206,10 @@ stripped ([ADR-0007]).
 | **hasami-core** | imperative | **13.5 KiB** | **0.76 s / 1.06 s** | **0** | yes |
 | argh | derive | 15.7 KiB | 3.31 s / 3.46 s | 13 | no |
 | lexopt | imperative | 16.6 KiB | 0.78 s / 1.07 s | 1 | yes |
-| **hasami** (builder, `help`) | builder | **71.8 KiB** | **0.86 s / 1.31 s** | **0** | yes |
-| **hasami** (`cli!`, `help`) | macro DSL | 79.3 KiB | 0.87 s / 1.38 s | 0 | yes |
-| **hasami** (derive, `help`) | derive | 79.2 KiB | 2.3 s / 2.5 s | 4 | yes |
-| **hasami** (builder, `full`) | builder | 87.6 KiB | 0.83 s / 1.40 s | 0 | yes |
+| **hasami** (builder, `help`) | builder | **74.1 KiB** | **0.88 s / 1.27 s** | **0** | yes |
+| **hasami** (`cli!`, `help`) | macro DSL | 81.4 KiB | 0.94 s / 1.42 s | 0 | yes |
+| **hasami** (derive, `help`) | derive | 81 KiB | 2.3 s / 2.5 s | 4 | yes |
+| **hasami** (builder, `full`) | builder | 93.2 KiB | 0.90 s / 1.39 s | 0 | yes |
 | bpaf | combinators | 95.1 KiB | 0.78 s / 1.25 s | 1 | yes |
 | clap 4 | builder | 199.0 KiB | 1.79 s / 2.73 s | 4 | yes |
 
@@ -226,6 +233,9 @@ Windows `/opt` syntax.
 
 ## Documentation
 
+* [The complete reference on one page](docs/ai/hasami-reference.md),
+  written for people and language models; the matching Claude Code
+  skill is in `.claude/skills/hasami/`
 * [Architecture decision records](docs/ADR/README.md)
 * [Migration guides](docs/migration/README.md) from clap, argh, bpaf,
   lexopt, pico-args and xflags

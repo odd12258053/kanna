@@ -69,6 +69,12 @@ pub fn manpage_with(cmd: &Command, opts: &ManOptions) -> String {
         let _ = writeln!(out, "{}", roff_paragraphs(long));
     }
     man_body(&mut out, cmd, cmd.name());
+    if !cmd.get_examples().is_empty() {
+        out.push_str(".SH EXAMPLES\n");
+        for ex in cmd.get_examples() {
+            let _ = writeln!(out, ".PP\n\\fB{}\\fR", roff(ex));
+        }
+    }
     if let Some(after) = cmd.get_after_help() {
         out.push_str(".SH NOTES\n");
         let _ = writeln!(out, "{}", roff_paragraphs(after));
@@ -253,6 +259,13 @@ fn md_command(out: &mut String, cmd: &Command, path: &str, level: usize) {
             md_command(out, &sub, &[path, " ", s.name()].concat(), level + 1);
         }
     }
+    if !cmd.get_examples().is_empty() {
+        let _ = writeln!(out, "{} Examples\n\n```", "#".repeat(level + 1));
+        for ex in cmd.get_examples() {
+            let _ = writeln!(out, "{ex}");
+        }
+        out.push_str("```\n\n");
+    }
     if let Some(after) = cmd.get_after_help() {
         let _ = writeln!(out, "{after}\n");
     }
@@ -381,6 +394,13 @@ fn html_command(out: &mut String, cmd: &Command, path: &str, level: usize) {
             let sub = s.build();
             html_command(out, &sub, &[path, " ", s.name()].concat(), level + 1);
         }
+    }
+    if !cmd.get_examples().is_empty() {
+        let _ = writeln!(out, "<h{0}>Examples</h{0}>\n<pre>", level.min(6) + 1);
+        for ex in cmd.get_examples() {
+            let _ = writeln!(out, "{}", esc(ex));
+        }
+        out.push_str("</pre>\n");
     }
     if let Some(after) = cmd.get_after_help() {
         let _ = writeln!(out, "<p>{}</p>", esc(after).replace('\n', "<br>\n"));

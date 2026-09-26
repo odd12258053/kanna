@@ -32,10 +32,63 @@ pub type Completer = Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>;
 /// wrong [`Matches`](crate::Matches).
 pub(crate) type Extract<T> = fn(&ArgDef, &[Stored]) -> Option<T>;
 
+/// The broad category of a value's Rust type, recorded when the argument
+/// is defined so that generators (schemas, tool definitions) can pick a
+/// JSON type without knowing the type itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ValueType {
+    /// Any built-in integer type.
+    Integer,
+    /// `f32` or `f64`.
+    Float,
+    /// `bool`.
+    Boolean,
+    /// `String` or `OsString`.
+    String,
+    /// `PathBuf`.
+    Path,
+    /// Anything else (a user type with `FromStr`).
+    Other,
+}
+
+fn value_type_of<U: Any>() -> ValueType {
+    use std::any::TypeId;
+    let id = TypeId::of::<U>();
+    let ints = [
+        TypeId::of::<i8>(),
+        TypeId::of::<i16>(),
+        TypeId::of::<i32>(),
+        TypeId::of::<i64>(),
+        TypeId::of::<i128>(),
+        TypeId::of::<isize>(),
+        TypeId::of::<u8>(),
+        TypeId::of::<u16>(),
+        TypeId::of::<u32>(),
+        TypeId::of::<u64>(),
+        TypeId::of::<u128>(),
+        TypeId::of::<usize>(),
+    ];
+    if ints.contains(&id) {
+        ValueType::Integer
+    } else if id == TypeId::of::<f32>() || id == TypeId::of::<f64>() {
+        ValueType::Float
+    } else if id == TypeId::of::<bool>() {
+        ValueType::Boolean
+    } else if id == TypeId::of::<String>() || id == TypeId::of::<OsString>() {
+        ValueType::String
+    } else if id == TypeId::of::<std::path::PathBuf>() {
+        ValueType::Path
+    } else {
+        ValueType::Other
+    }
+}
+
 /// How a value-taking argument behaves.
 #[derive(Clone)]
 pub(crate) struct ValueDef {
     pub(crate) name: String,
+    pub(crate) kind: ValueType,
     pub(crate) parser: ValueParser,
     /// Value used when the argument is absent, plus its help rendering.
     pub(crate) default: Option<(ValueMaker, String)>,
@@ -245,6 +298,10 @@ impl ArgDef {
     /// The custom help section this argument is listed under.
     pub fn help_heading(&self) -> Option<&str> {
         self.heading.as_deref()
+    }
+    /// The category of the value's Rust type, for generators.
+    pub fn value_type(&self) -> Option<ValueType> {
+        self.value.as_ref().map(|v| v.kind)
     }
     /// The character each value is split on, if any.
     pub fn delimiter(&self) -> Option<char> {
@@ -727,6 +784,7 @@ impl Arg<bool> {
     fn value_parser<U: Any + Clone + Send + Sync>(mut self, parser: ValueParser) -> Arg<Option<U>> {
         self.def.value = Some(ValueDef {
             name: value_name_from_id(&self.def.id),
+            kind: value_type_of::<U>(),
             parser,
             default: None,
             default_missing: None,

@@ -20,7 +20,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use hasami::{ArgDef, Command, Relation};
+use hasami::{ArgDef, Command, Relation, ValueType};
+
+pub mod tool;
 
 /// JSON Schema for the documents produced by [`to_json`].
 pub const JSON_SCHEMA: &str = include_str!("schema.json");
@@ -165,6 +167,8 @@ impl Writer {
             o.w.bool(cmd.is_infer_subcommands());
             o.key("external_subcommands");
             o.w.bool(cmd.allows_external_subcommands());
+            o.key("examples");
+            o.w.array(cmd.get_examples(), |w, e| w.string(e));
             o.key("help_flag");
             o.w.bool(cmd.has_help_flag());
             o.key("version_flag");
@@ -234,6 +238,8 @@ impl Writer {
             o.w.bool(a.takes_value());
             o.key("value_name");
             o.w.opt_string(a.value_name());
+            o.key("value_type");
+            o.w.opt_string(a.value_type().map(value_type_name));
             o.key("value_optional");
             o.w.bool(a.value_is_optional());
             o.key("required");
@@ -311,6 +317,18 @@ impl Writer {
     }
 }
 
+/// The JSON name of a [`ValueType`].
+pub(crate) fn value_type_name(t: ValueType) -> &'static str {
+    match t {
+        ValueType::Integer => "integer",
+        ValueType::Float => "float",
+        ValueType::Boolean => "boolean",
+        ValueType::String => "string",
+        ValueType::Path => "path",
+        _ => "other",
+    }
+}
+
 struct Object<'a> {
     w: &'a mut Writer,
     first: bool,
@@ -382,7 +400,7 @@ mod tests {
         let json = to_json(&sample());
         assert!(json.starts_with(r#"{"format":2,"name":"app","version":"1.0","about":"About","#));
         assert!(json.contains(r#""help":"How\nmany \"times\"""#));
-        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_optional":false,"required":false,"many":false,"count":false,"last_wins":false,"greedy":false,"trailing":false,"delimiter":null,"hidden":true,"global":false,"help":null,"long_help":null,"help_heading":null,"default":null,"default_missing":null,"possible_values":["a","b"],"env":null,"dynamic_completion":false,"requires":[],"conflicts_with":[],"required_unless":[],"required_if_eq":[],"requires_if":[]}"#));
+        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_type":"string","value_optional":false,"required":false,"many":false,"count":false,"last_wins":false,"greedy":false,"trailing":false,"delimiter":null,"hidden":true,"global":false,"help":null,"long_help":null,"help_heading":null,"default":null,"default_missing":null,"possible_values":["a","b"],"env":null,"dynamic_completion":false,"requires":[],"conflicts_with":[],"required_unless":[],"required_if_eq":[],"requires_if":[]}"#));
         assert!(json.contains(r#""groups":[{"name":"fmt","members":["json","yaml"],"required":false,"exclusive":true}]"#));
         assert!(json.contains(r#""requires":[["json","number"]]"#));
         assert!(json.contains(

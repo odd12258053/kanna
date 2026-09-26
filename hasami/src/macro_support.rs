@@ -554,6 +554,10 @@ impl CommandSpec {
     pub fn term_width(&mut self, columns: usize) {
         self.cmd.term_width = Some(columns);
     }
+    /// `example = "app --x"` (repeatable).
+    pub fn example(&mut self, line: impl Into<String>) {
+        self.cmd.examples.push(line.into());
+    }
     /// Produce the command, ready for `.arg()` calls.
     pub fn finish(self) -> Command {
         let mut cmd = self.cmd;

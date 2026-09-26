@@ -321,6 +321,7 @@ const COMMAND_SETTINGS: &[&str] = &[
     "infer_subcommands",
     "allow_external_subcommands",
     "term_width",
+    "example",
 ];
 
 const VARIANT_SETTINGS: &[&str] = &["name", "alias", "visible_alias", "hidden"];

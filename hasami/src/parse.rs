@@ -262,7 +262,8 @@ fn option(frames: &mut [Frame<'_>], p: &mut Parser, name: Name) -> Result<(), Er
                 &def.display_name(),
                 "' cannot be used multiple times",
             ]),
-        ));
+        )
+        .with_arg(&def.id));
     }
     match &def.value {
         None => {
@@ -310,6 +311,7 @@ fn missing_value(def: &ArgDef) -> Error {
             "' but none was supplied",
         ]),
     )
+    .with_arg(&def.id)
 }
 
 fn unknown_option(frames: &[Frame<'_>], name: &Name) -> Error {
@@ -576,7 +578,7 @@ fn not_possible(def: &ArgDef, vd: &ValueDef, raw: &OsStr) -> Error {
             e = e.with_tip(msg(&["a similar value exists: '", best, "'"]));
         }
     }
-    e
+    e.with_arg(&def.id)
 }
 
 fn invalid_value(def: &ArgDef, raw: &OsStr, failure: ParseFailure) -> Error {
@@ -595,6 +597,7 @@ fn invalid_value(def: &ArgDef, raw: &OsStr, failure: ParseFailure) -> Error {
             &reason,
         ]),
     )
+    .with_arg(&def.id)
 }
 
 fn finish(frames: &mut [Frame<'_>]) -> Result<(), Error> {
@@ -636,6 +639,7 @@ fn requires_error(cmd: &Command, a: &str, b: &str) -> Error {
             "', which was not provided",
         ]),
     )
+    .with_arg(b)
 }
 
 fn conflict_error(cmd: &Command, a: &str, b: &str) -> Error {
@@ -649,6 +653,7 @@ fn conflict_error(cmd: &Command, a: &str, b: &str) -> Error {
             "'",
         ]),
     )
+    .with_arg(a)
 }
 
 fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {

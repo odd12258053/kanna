@@ -509,3 +509,23 @@ fn flatten_inlines_another_struct() {
     assert!(help.contains("--own"), "{help}");
     assert!(Flat::command().validate().is_ok());
 }
+
+hasami::cli! {
+    /// With examples
+    #[name = "ex", example = "ex --n 1", example = "ex --n x"]
+    struct Ex {
+        /// N
+        n: Option<u32>,
+    }
+}
+
+#[test]
+fn example_setting_through_the_macro() {
+    let cmd = Ex::command();
+    assert_eq!(cmd.get_examples(), ["ex --n 1", "ex --n x"]);
+    assert_eq!(cmd.check_examples().unwrap_err().len(), 1);
+    assert!(
+        cmd.render_help()
+            .contains("Examples:\n  ex --n 1\n  ex --n x\n")
+    );
+}

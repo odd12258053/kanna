@@ -521,3 +521,130 @@ fn custom_styles_are_kept_on_the_command() {
     assert_eq!(cmd.get_styles().header(), "\x1b[35m");
     assert_eq!(cmd.get_styles().literal(), Styles::COLORED.literal());
 }
+
+// ------------------------------------------------------- AI-oriented additions
+
+#[test]
+fn examples_are_checked_and_shown() {
+    let n = Arg::new("number").short('n').value::<u32>();
+    let sub_n = n.clone();
+    let cmd = Command::new("app")
+        .arg(&n)
+        .example("app -n 3")
+        .example("app --help")
+        .example("app -n 'quoted value' # comment")
+        .example("app --number nope   # deliberately wrong")
+        .subcommand(
+            Command::new("sub")
+                .arg(&sub_n)
+                .example("app sub --number 4")
+                .example("sub --number x"),
+        );
+    let failed = cmd.check_examples().unwrap_err();
+    assert_eq!(failed.len(), 3, "{failed:?}");
+    assert!(
+        failed[0].starts_with("`app -n 'quoted value'`: invalid value 'quoted value'"),
+        "{}",
+        failed[0]
+    );
+    assert!(
+        failed[1].starts_with("`app --number nope`: invalid value 'nope'"),
+        "{}",
+        failed[1]
+    );
+    assert!(failed[2].starts_with("`sub --number x`:"), "{}", failed[2]);
+    assert_eq!(cmd.get_examples().len(), 4);
+    #[cfg(feature = "help")]
+    {
+        let help = cmd.render_help();
+        assert!(
+            help.contains("\nExamples:\n  app -n 3\n  app --help\n"),
+            "{help}"
+        );
+        // Examples come after the options and before after_help.
+        let good = Command::new("ok").example("ok").after_help("Bye");
+        assert!(good.check_examples().is_ok());
+        assert!(good.render_help().ends_with("Examples:\n  ok\n\nBye\n"));
+    }
+}
+
+#[test]
+fn value_types_are_recorded() {
+    use hasami::ValueType;
+    use std::path::PathBuf;
+    let i = Arg::new("i").value::<u16>();
+    let f = Arg::new("f").value::<f64>();
+    let b = Arg::new("b").value::<bool>();
+    let s = Arg::new("s").value::<String>();
+    let p = Arg::positional::<PathBuf>("P");
+    let o = Arg::new("o").value_os();
+    let w = Arg::new("w").value_enum::<When>();
+    let flag = Arg::new("flag");
+    assert_eq!(i.def().value_type(), Some(ValueType::Integer));
+    assert_eq!(f.def().value_type(), Some(ValueType::Float));
+    assert_eq!(b.def().value_type(), Some(ValueType::Boolean));
+    assert_eq!(s.def().value_type(), Some(ValueType::String));
+    assert_eq!(p.def().value_type(), Some(ValueType::Path));
+    assert_eq!(o.def().value_type(), Some(ValueType::String));
+    assert_eq!(w.def().value_type(), Some(ValueType::Other));
+    assert_eq!(flag.def().value_type(), None);
+}
+
+#[test]
+fn errors_name_the_argument() {
+    let n = Arg::new("number").short('n').value::<u32>();
+    let a = Arg::new("a").requires(&n);
+    let b = Arg::new("b").conflicts_with(&a);
+    let cmd = Command::new("app").arg(&n).arg(&a).arg(&b);
+    assert_eq!(
+        cmd.try_parse_args(["-n", "x"]).unwrap_err().arg(),
+        Some("number")
+    );
+    assert_eq!(
+        cmd.try_parse_args(["-n"]).unwrap_err().arg(),
+        Some("number")
+    );
+    assert_eq!(
+        cmd.try_parse_args(["-n1", "-n2"]).unwrap_err().arg(),
+        Some("number")
+    );
+    assert_eq!(
+        cmd.try_parse_args(["--a"]).unwrap_err().arg(),
+        Some("number")
+    );
+    // The argument that declares the relation is the one named.
+    assert_eq!(
+        cmd.try_parse_args(["--a", "-n1", "--b"]).unwrap_err().arg(),
+        Some("b")
+    );
+    assert_eq!(cmd.try_parse_args(["--zzz"]).unwrap_err().arg(), None);
+    assert_eq!(ErrorKind::InvalidValue.name(), "invalid_value");
+    assert_eq!(ErrorKind::HelpOnMissingArgs.name(), "help_on_missing_args");
+}
+
+#[cfg(feature = "json")]
+#[test]
+fn errors_render_as_json() {
+    let n = Arg::new("number").short('n').value::<u32>();
+    let cmd = Command::new("app").arg(&n);
+    let e = cmd.try_parse_args(["-n", "x\"y"]).unwrap_err();
+    let json = e.to_json();
+    assert!(json.starts_with(r#"{"kind":"invalid_value","exit_code":2,"arg":"number","message":"invalid value 'x\"y' for '--number <NUMBER>': "#), "{json}");
+    assert!(
+        json.contains(r#","tip":null,"usage":"app [OPTIONS]"}"#),
+        "{json}"
+    );
+    let e = hasami::Error::custom("boom").with_tip("fix it");
+    assert_eq!(
+        e.to_json(),
+        r#"{"kind":"custom","exit_code":2,"arg":null,"message":"boom","tip":"fix it","usage":null}"#
+    );
+    #[cfg(feature = "help")]
+    {
+        let e = cmd.try_parse_args(["--help"]).unwrap_err();
+        assert!(
+            e.to_json()
+                .starts_with(r#"{"kind":"display_help","exit_code":0,"#)
+        );
+    }
+}

@@ -11,6 +11,15 @@ migration note here.
 
 ### Added
 
+* For AI-assisted development (ADR-0019): `docs/ai/hasami-reference.md`
+  (every name and setting on one page) and a Claude Code skill;
+  `cli!` now reports an unknown setting with the list of valid ones;
+  `Command::example` / `example = ".."` with an `Examples:` help section
+  and `Command::check_examples()`; `ValueType` recorded per argument;
+  `hasami_schema::tool` (Claude / MCP tool definitions from a `Command`,
+  and `to_argv` back to a command line); feature `json` with
+  `Error::to_json`, `Error::arg`, `ErrorKind::name` and
+  `HASAMI_ERROR_FORMAT=json`.
 * Feature parity with clap where it was missing (ADR-0018): `#[flatten]`,
   `greedy()` values per occurrence, `delimiter()`, per-argument
   `requires` / `conflicts_with` / `required_unless` / `required_if_eq` /

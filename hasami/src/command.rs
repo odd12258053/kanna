@@ -229,6 +229,63 @@ impl Subcommand {
     }
 }
 
+/// Split a command line into words the way a POSIX shell does for the
+/// simple cases: whitespace separates, single quotes take everything
+/// literally, double quotes allow `\"` and `\\`.
+pub(crate) fn shell_words(line: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut cur = String::new();
+    let mut in_word = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            c if c.is_whitespace() => {
+                if in_word {
+                    words.push(std::mem::take(&mut cur));
+                    in_word = false;
+                }
+            }
+            '\'' => {
+                in_word = true;
+                for c in chars.by_ref() {
+                    if c == '\'' {
+                        break;
+                    }
+                    cur.push(c);
+                }
+            }
+            '"' => {
+                in_word = true;
+                while let Some(c) = chars.next() {
+                    match c {
+                        '"' => break,
+                        '\\' => {
+                            if let Some(n) = chars.next() {
+                                cur.push(n);
+                            }
+                        }
+                        c => cur.push(c),
+                    }
+                }
+            }
+            '\\' => {
+                in_word = true;
+                if let Some(n) = chars.next() {
+                    cur.push(n);
+                }
+            }
+            c => {
+                in_word = true;
+                cur.push(c);
+            }
+        }
+    }
+    if in_word {
+        words.push(cur);
+    }
+    words
+}
+
 /// A borrowed, shared or freshly built command.
 pub(crate) enum CmdRef<'a> {
     Borrowed(&'a Command),
@@ -282,6 +339,9 @@ pub struct Command {
     /// environment variable or 100.
     pub(crate) term_width: Option<usize>,
     pub(crate) styles: Styles,
+    /// Complete command lines shown under `Examples:` in help and
+    /// checked by [`check_examples`](Command::check_examples).
+    pub(crate) examples: Vec<String>,
 }
 
 impl Command {
@@ -310,6 +370,7 @@ impl Command {
             external_subcommands: false,
             term_width: None,
             styles: Styles::default_palette(),
+            examples: Vec::new(),
         }
     }
 
@@ -335,6 +396,17 @@ impl Command {
     /// Free text appended to the end of help.
     pub fn after_help(mut self, text: impl Into<String>) -> Command {
         self.after_help = Some(text.into());
+        self
+    }
+
+    /// Add an example command line. Examples are listed under
+    /// `Examples:` in help (after the options, before `after_help`) and
+    /// verified by [`check_examples`](Command::check_examples). Write the
+    /// full line as a user would type it, starting with the command name:
+    /// `"app add cake --sweet"`. A `#` starts a comment that is shown but
+    /// not parsed.
+    pub fn example(mut self, line: impl Into<String>) -> Command {
+        self.examples.push(line.into());
         self
     }
 
@@ -528,6 +600,10 @@ impl Command {
     /// Does the command accept `-h/--help`?
     pub fn has_help_flag(&self) -> bool {
         cfg!(feature = "help") && !self.disable_help
+    }
+    /// The example command lines.
+    pub fn get_examples(&self) -> &[String] {
+        &self.examples
     }
     /// The text printed by `--version` when it differs from `-V`.
     pub fn get_long_version(&self) -> Option<&str> {
@@ -749,6 +825,55 @@ impl Command {
         for s in &self.subcommands {
             let sub = s.build();
             sub.validate_into(&[path, " ", &s.name].concat(), out);
+        }
+    }
+
+    /// Parse every example (of this command and, recursively, of its
+    /// subcommands) and return the ones that fail, as
+    /// `` `example`: error message ``. Help and version requests count as
+    /// success.
+    ///
+    /// An example is split like a shell would (spaces separate words,
+    /// single or double quotes group them, `\` escapes inside double
+    /// quotes) and the text after `#` is ignored. Words up to and
+    /// including the command's own name are dropped, so an example may
+    /// start with `app` or `app sub`.
+    ///
+    /// ```
+    /// use hasami::{Arg, Command};
+    /// let n = Arg::new("number").value::<u32>();
+    /// let cmd = Command::new("app").arg(&n)
+    ///     .example("app --number 3")
+    ///     .example("app --number many   # wrong on purpose");
+    /// let failed = cmd.check_examples().unwrap_err();
+    /// assert_eq!(failed.len(), 1);
+    /// assert!(failed[0].starts_with("`app --number many`: "));
+    /// ```
+    pub fn check_examples(&self) -> Result<(), Vec<String>> {
+        let mut failed = Vec::new();
+        self.check_examples_into(&mut failed);
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(failed)
+        }
+    }
+
+    fn check_examples_into(&self, out: &mut Vec<String>) {
+        for ex in &self.examples {
+            let line = ex.split('#').next().unwrap_or("").trim();
+            let mut words = shell_words(line);
+            if let Some(i) = words.iter().position(|w| w == &self.name) {
+                words.drain(..=i);
+            }
+            if let Err(e) = self.try_parse_args(words) {
+                if !e.is_display() {
+                    out.push(["`", line, "`: ", e.message()].concat());
+                }
+            }
+        }
+        for s in &self.subcommands {
+            s.build().check_examples_into(out);
         }
     }
 

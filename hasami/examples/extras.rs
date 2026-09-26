@@ -4,6 +4,8 @@
 //! Run: `cargo run --example extras -- completions bash`
 //!      `cargo run --example extras -- doc markdown`
 //!      `cargo run --example extras -- schema`
+//!      `cargo run --example extras -- tools`
+//!      `cargo run --example extras -- tools --call extras_do '{"branch": "main", "dry-run": true}'`
 //!      `_HASAMI_COMPLETE=bash _HASAMI_COMPLETE_WORDS=$'extras\x1fdo\x1f--br' _HASAMI_COMPLETE_INDEX=2 cargo run -q --example extras`
 #![forbid(unsafe_code)]
 
@@ -30,6 +32,13 @@ fn command() -> Command {
     let format = Arg::positional::<String>("FORMAT")
         .possible(["man", "markdown", "html"])
         .required();
+    let call = Arg::new("call")
+        .value::<String>()
+        .value_name("TOOL")
+        .help("Convert a tool call to a command line instead of printing definitions");
+    let input = Arg::positional::<String>("INPUT")
+        .help("The tool call's JSON input (with --call)")
+        .requires(&call);
     Command::new("extras")
         .version("0.1.0")
         .about("Show the generator crates")
@@ -51,6 +60,14 @@ fn command() -> Command {
                 .arg(&format),
         )
         .subcommand(Command::new("schema").about("Print the JSON description"))
+        .subcommand(
+            Command::new("tools")
+                .about("Print tool definitions for an AI agent, or turn a tool call into a command line")
+                .arg(&call)
+                .arg(&input)
+                .example("extras tools")
+                .example("extras tools --call extras_do '{\"branch\": \"main\"}'"),
+        )
         .subcommand_required()
 }
 
@@ -85,6 +102,32 @@ fn main() {
             print!("{text}");
         }
         Some(("schema", _)) => print!("{}", hasami_schema::to_json_pretty(&cmd)),
+        Some(("tools", sm)) => {
+            let call = sm
+                .raw_id("call")
+                .first()
+                .map(|v| v.to_string_lossy().into_owned());
+            match call {
+                None => println!(
+                    "{}",
+                    hasami_schema::tool::to_json(&hasami_schema::tool::tools(&cmd), false)
+                ),
+                Some(tool) => {
+                    let input = sm
+                        .raw_id("INPUT")
+                        .first()
+                        .map(|v| v.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| "{}".to_owned());
+                    match hasami_schema::tool::to_argv(&cmd, &tool, &input) {
+                        Ok(argv) => println!("{argv:?}"),
+                        Err(e) => {
+                            eprintln!("error: {e}");
+                            std::process::exit(2);
+                        }
+                    }
+                }
+            }
+        }
         _ => {}
     }
 }

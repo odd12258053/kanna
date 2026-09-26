@@ -26,7 +26,8 @@
         "arg_required_else_help",
         "infer_long_args",
         "infer_subcommands",
-        "external_subcommands"
+        "external_subcommands",
+        "examples"
       ],
       "properties": {
         "format": {
@@ -94,6 +95,13 @@
         "external_subcommands": {
           "type": "boolean",
           "description": "An unknown first positional is accepted as an external subcommand."
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Example command lines shown in help and checked by Command::check_examples."
         },
         "help_flag": {
           "type": "boolean",
@@ -172,7 +180,8 @@
         "conflicts_with",
         "required_unless",
         "required_if_eq",
-        "requires_if"
+        "requires_if",
+        "value_type"
       ],
       "properties": {
         "id": {
@@ -222,6 +231,22 @@
             "string",
             "null"
           ]
+        },
+        "value_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "integer",
+            "float",
+            "boolean",
+            "string",
+            "path",
+            "other",
+            null
+          ],
+          "description": "Category of the value's Rust type; null for flags and counters."
         },
         "value_optional": {
           "type": "boolean",

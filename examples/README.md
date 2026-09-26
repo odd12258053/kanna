@@ -9,7 +9,7 @@ crate and which features a real program needs. None is published.
 |-----------|--------|-------|----------|--------------|
 | `wc/` | `wc` | `kanna-core` | none | Counts lines, words, bytes and characters. Help, version and usage text are hand-written; the binary depends on `std` alone. |
 | `sift/` | `sift` | builder | `help`, `suggest`, `color` | A substring grep: `-e` patterns, `-i`, `-v`, `-n`, `-c`, `-l`, `-r`, `--color[=WHEN]`, grep-compatible exit status. |
-| `todo/` | `todo` | `cli!` macro | `help`, `suggest`, `env` | A todo list in a text file: `add`, `list`, `done`, `undo`, `rm`, `clear`, plus `completions` generated with `kanna-complete`. `--file` falls back to `TODO_FILE`. |
+| `todo/` | `todo` | `cli!` macro | `help`, `suggest`, `env` | A todo list in a text file: `add`, `list`, `done`, `undo`, `rm`, `clear`, plus `completions` generated with `kanna-complete` and `repl`, a read-eval-print loop from `kanna-prompt` over the same subcommands. `--file` falls back to `TODO_FILE`. |
 | `hexdump/` | `hexdump` | `#[derive(Args)]` | `help`, `derive` | Hex and ASCII dump with a custom `Size` type (`4k`, `0x100`), `--skip`, `--length`, `--width`, `--offset`, squeezing of repeated lines. |
 | `units/` | `units` | `cli!` + `kanna-schema` | `help`, `json` | A unit converter an AI agent can drive: `length`, `mass`, `temp`, plus `tools` (Claude / MCP tool definitions), `call` (runs a tool from its JSON input through `to_argv`) and `schema` (the JSON description). `KANNA_ERROR_FORMAT=json` gives structured errors. |
 

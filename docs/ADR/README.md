@@ -30,3 +30,4 @@ Numbers are never reused. A superseded ADR keeps its file and gets
 | [0019](0019-ai-oriented-features.md) | Features for CLIs written by, and used by, AI agents | Accepted |
 | [0020](0020-rename-to-kanna.md) | The project is named kanna (was hasami; the name was taken on crates.io) | Accepted |
 | [0021](0021-agent-facing-definitions.md) | Agent-facing definitions: value help, `no_tool`, typed tool errors | Accepted |
+| [0022](0022-kanna-prompt-repl.md) | `kanna-prompt`, a REPL over the command definition | Accepted |

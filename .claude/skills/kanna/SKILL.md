@@ -1,6 +1,6 @@
 ---
 name: kanna
-description: Build or change a command line interface with the kanna crates (kanna-core lexer, kanna builder, cli! macro, derive, and the completion/doc/schema generators). Use when writing Rust CLI argument parsing in this repository or any project that depends on kanna.
+description: Build or change a command line interface with the kanna crates (kanna-core lexer, kanna builder, cli! macro, derive, the completion/doc/schema generators and the kanna-prompt REPL). Use when writing Rust CLI argument parsing in this repository or any project that depends on kanna.
 ---
 
 # Writing a CLI with kanna

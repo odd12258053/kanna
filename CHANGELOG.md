@@ -9,7 +9,18 @@ migration note here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+* `kanna-prompt` (ADR-0022): a read-eval-print loop over a `Command`.
+  `Repl::new(&cmd).prompt("app> ").run(handler)` reads lines from
+  standard input, splits them like a shell, parses each with the same
+  definition and calls the handler with the `Matches` (`run_typed` for
+  a `cli!`/derive struct). `help`, `exit`/`quit`, `#` comments, end of
+  input, errors printed and the loop continued. `run_line` for
+  line-editing front ends; feature `complete` adds `complete_line`.
+* `kanna::split_words`: the shell-like splitter used by
+  `check_examples` and the REPL, now public.
+* `examples/todo` gains a `repl` subcommand.
 
 ## [0.2.0] - 2026-09-26
 

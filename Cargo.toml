@@ -7,6 +7,7 @@ members = [
     "kanna-complete",
     "kanna-doc",
     "kanna-schema",
+    "kanna-prompt",
     "benches",
     # Complete applications built on each layer; see examples/README.md.
     "examples/wc",

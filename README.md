@@ -11,7 +11,7 @@ A layered command line argument parser for Rust.
 | 2. Builder | `kanna` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings, examples and wrapping, errors with tips, definition validation | 75.0 KiB, 0.9 s |
 | 3. `cli!` | `kanna` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 82.6 KiB, 0.9 s |
 | 4. Derive | `kanna` + `derive` | `#[derive(Args)]`, `#[derive(Commands)]`, `#[derive(ValueEnum)]` with the same semantics as `cli!` | 81 KiB, 2.3 s |
-| + | `kanna-complete`, `kanna-doc`, `kanna-schema` | Shell completion (5 shells, static and dynamic), manpage / Markdown / HTML, JSON description | separate crates |
+| + | `kanna-complete`, `kanna-doc`, `kanna-schema`, `kanna-prompt` | Shell completion (5 shells, static and dynamic), manpage / Markdown / HTML, JSON description and AI tool definitions, a REPL over the same definition | separate crates |
 
 ¹ Binary size delta over an empty `main`, clean dev build time; full tables [below](#how-it-compares).
 

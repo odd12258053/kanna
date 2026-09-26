@@ -322,17 +322,24 @@ mod tests {
     /// The bash script must at least parse, when bash is available.
     #[test]
     fn bash_script_parses() {
+        // Skip unless `bash` is a working GNU bash: on Windows runners the
+        // name resolves to the WSL launcher, which fails with no distro.
+        let probe = std::process::Command::new("bash")
+            .args(["-c", "echo \"$BASH_VERSION\""])
+            .output();
+        match probe {
+            Ok(out) if out.status.success() && !out.stdout.trim_ascii().is_empty() => {}
+            _ => return,
+        }
         let script = generate(Shell::Bash, &sample());
         let dynamic = generate_dynamic(Shell::Bash, "app");
         for s in [script, dynamic] {
-            let Ok(out) = std::process::Command::new("bash")
+            let out = std::process::Command::new("bash")
                 .arg("-n")
                 .arg("-c")
                 .arg(&s)
                 .output()
-            else {
-                return;
-            };
+                .expect("bash was runnable a moment ago");
             assert!(
                 out.status.success(),
                 "{}\n{s}",

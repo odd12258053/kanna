@@ -104,9 +104,13 @@ Both projects have an MSRV of 1.85.
   `allow_hyphen_values`.
 * **Definitions are plain values.** One `Command` serves the parser, the
   completion generator, the manpage generator and the JSON schema.
-* **Auditability.** About 6,100 lines for lexer and builder together, no
-  `unsafe` anywhere, 208 tests plus a 200,000-case pseudo-fuzz and a
+* **Auditability.** About 6,300 lines for lexer and builder together, no
+  `unsafe` anywhere, 220 tests plus a 200,000-case pseudo-fuzz and a
   libFuzzer target.
+* **Built for use with language models.** A one-page complete reference,
+  compile errors that list the valid settings, verified examples, tool
+  definitions and structured errors (table below). clap has none of
+  these in the crate itself.
 
 ## Where clap is still better
 
@@ -125,8 +129,31 @@ Both projects have an MSRV of 1.85.
 * **Derive build time is not better.** Anyone choosing hasami for its
   derive front gets clap-like build times because `syn` dominates; only
   the size advantage remains.
+* **The size margin is nearly spent.** `decl[help]` sits at 74.1 KiB
+  under a 75 KiB budget and `full / clap` at 0.47 under 0.5; the next
+  default-build feature forces a budget decision, whereas clap has no
+  such constraint to manage.
 * **Documentation volume.** API docs, README, migration guides and ADRs
   exist, but there is no tutorial and far fewer worked examples.
+
+## Working with a language model
+
+Since ADR-0019 this is an axis of its own. What each library offers to
+a model that writes a CLI, and to an agent that calls one:
+
+| Concern | clap 4 | hasami |
+|---------|--------|--------|
+| A complete, single-file list of every setting | none in the crate; the docs are a large rustdoc tree, a tutorial and a cookbook | `docs/ai/hasami-reference.md` plus a Claude Code skill |
+| Wrong setting name in a derive/macro | derive: compile error listing valid attributes; builder: a runtime `debug_assert` for some mistakes | derive and `cli!`: compile error naming the setting and listing every valid one |
+| Definition mistakes | `Command::debug_assert()`, first problem only | `Command::validate()`, every problem, automatic in debug builds |
+| Examples in the definition | free text in `after_help` | `example = ".."`, rendered in help and docs and parsed by `check_examples()` |
+| Exposing the CLI as an agent tool | not in clap itself | `hasami_schema::tool`: Claude / MCP tool definitions with JSON Schema inputs, and `to_argv` back to a validated command line |
+| Machine-readable description of the CLI | not in clap itself | `hasami_schema::to_json` (format 2, with a JSON Schema) |
+| Machine-readable errors | text only | `Error::to_json`, `Error::arg`, `ErrorKind::name`, `HASAMI_ERROR_FORMAT=json` (feature `json`) |
+| Suggestions for typos | `suggestions` feature | `suggest` feature (options, subcommands, values) |
+
+The size cost of these additions is 2.3 KiB on the default build and
+5.6 KiB more for `json`.
 
 ## Behavioural differences worth knowing
 

@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
@@ -29,9 +29,9 @@ keywords = ["cli", "arguments", "parser", "argparse", "getopt"]
 categories = ["command-line-interface"]
 
 [workspace.dependencies]
-kanna-core = { path = "kanna-core", version = "0.2.0", default-features = false }
-kanna = { path = "kanna", version = "0.2.0", default-features = false }
-kanna-derive = { path = "kanna-derive", version = "0.2.0" }
+kanna-core = { path = "kanna-core", version = "0.2.1", default-features = false }
+kanna = { path = "kanna", version = "0.2.1", default-features = false }
+kanna-derive = { path = "kanna-derive", version = "0.2.1" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

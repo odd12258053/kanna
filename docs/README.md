@@ -1,6 +1,6 @@
-# hasami documentation
+# kanna documentation
 
-* [ai/hasami-reference.md](ai/hasami-reference.md): every public name and
+* [ai/kanna-reference.md](ai/kanna-reference.md): every public name and
   setting on one page, for people and language models.
 * [ADR/](ADR/README.md): architecture decision records, one per decision.
 * [migration/](migration/README.md): moving from clap, argh, bpaf, lexopt,

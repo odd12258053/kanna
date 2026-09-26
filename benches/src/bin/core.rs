@@ -1,9 +1,9 @@
-//! The sample CLI written against `hasami-core` alone.
+//! The sample CLI written against `kanna-core` alone.
 #![forbid(unsafe_code)]
 
-use hasami_core::prelude::*;
+use kanna_core::prelude::*;
 
-fn run() -> Result<(), hasami_core::Error> {
+fn run() -> Result<(), kanna_core::Error> {
     let mut verbose = false;
     let mut name: Option<String> = None;
     let mut count = 1u32;

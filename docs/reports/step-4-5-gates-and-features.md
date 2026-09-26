@@ -6,13 +6,13 @@ Date: 2026-09-26. Machine: 24-core x86_64 Linux (Fedora, kernel 7.2), rustc
 
 ## What was built
 
-* `benches/`: one sample CLI implemented with `hasami-core`, the builder,
+* `benches/`: one sample CLI implemented with `kanna-core`, the builder,
   the `cli!` macro, clap 4, lexopt, pico-args, argh and bpaf (combinators);
   `size.sh` and `build-time.sh` with `--check` budgets and `--compare`.
 * `.github/workflows/ci.yml`: tests on three OSes, MSRV, feature matrix,
   fmt, clippy, docs, `cargo deny`, zero-dependency check, size gate,
   build-time gate, 60 s fuzz run. `deny.toml` bans `syn` outside
-  `hasami-derive`.
+  `kanna-derive`.
 * `suggest`: Jaro-Winkler (threshold 0.8) for unknown options, subcommands
   and restricted values; global options are candidates inside subcommands.
 * `env`: `Arg::env` / `env = "VAR"`, consulted only when the argument is
@@ -24,7 +24,7 @@ Date: 2026-09-26. Machine: 24-core x86_64 Linux (Fedora, kernel 7.2), rustc
 
 | Variant | Delta | Budget |
 |---------|------:|-------:|
-| `hasami-core` | 13.5 KiB | ≤ 20 KiB |
+| `kanna-core` | 13.5 KiB | ≤ 20 KiB |
 | builder, no features | 48 KiB | |
 | builder + `help` | **57.8 KiB** | ≤ 60 KiB |
 | builder + `help` + `color` | 65.4 KiB | |
@@ -43,7 +43,7 @@ Date: 2026-09-26. Machine: 24-core x86_64 Linux (Fedora, kernel 7.2), rustc
 
 | Variant | dev | release | Budget (dev) |
 |---------|----:|--------:|-------------:|
-| `hasami-core` | 0.61 | 0.84 | ≤ 2 |
+| `kanna-core` | 0.61 | 0.84 | ≤ 2 |
 | builder + `help` | 0.67 | 1.02 | |
 | builder + `full` | 0.73 | 1.08 | ≤ 4 |
 | `cli!` macro + `full` | 0.73 | 1.10 | |
@@ -53,7 +53,7 @@ Date: 2026-09-26. Machine: 24-core x86_64 Linux (Fedora, kernel 7.2), rustc
 | clap | 1.79 | 2.60 | |
 | argh (syn) | 3.20 | 3.36 | |
 
-Third-party dependency counts: hasami 0, lexopt 1, pico-args 1, bpaf 1,
+Third-party dependency counts: kanna 0, lexopt 1, pico-args 1, bpaf 1,
 clap 4, argh 13.
 
 ## Design points that needed a decision

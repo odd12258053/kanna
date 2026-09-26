@@ -1,11 +1,11 @@
 # From pico-args
 
 pico-args pulls options out of the argument list by name, in any order;
-hasami-core walks the arguments in order, and `hasami::Command` declares
+kanna-core walks the arguments in order, and `kanna::Command` declares
 them. Either replacement removes pico-args' known gaps (`-abc` clusters,
 `--opt=` handling, help generation).
 
-| pico-args | hasami-core | hasami builder |
+| pico-args | kanna-core | kanna builder |
 |-----------|-------------|----------------|
 | `Arguments::from_env()` | `Parser::from_env()` | `Command::new(..)` then `.parse()` |
 | `args.contains(["-v", "--verbose"])` | `Short('v') \| Long("verbose") => ..` | `Arg::new("verbose").short('v')`; `m.get(&verbose)` |

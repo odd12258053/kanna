@@ -2,9 +2,9 @@
 //! with a custom `FromStr` type for byte sizes (`4k`, `0x100`, `2M`).
 //!
 //! ```text
-//! cargo run -p hasami-example-hexdump -- -n 64 Cargo.lock
-//! cargo run -p hasami-example-hexdump -- --skip 0x10 --width 8 --offset dec Cargo.toml
-//! echo hello | cargo run -p hasami-example-hexdump
+//! cargo run -p kanna-example-hexdump -- -n 64 Cargo.lock
+//! cargo run -p kanna-example-hexdump -- --skip 0x10 --width 8 --offset dec Cargo.toml
+//! echo hello | cargo run -p kanna-example-hexdump
 //! ```
 #![forbid(unsafe_code)]
 
@@ -15,29 +15,29 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::str::FromStr;
 
-use hasami::{Args, Cli};
+use kanna::{Args, Cli};
 
 /// Show the bytes of files in hex and ASCII
 #[derive(Args)]
-#[hasami(name = "hexdump", version = env!("CARGO_PKG_VERSION"))]
+#[kanna(name = "hexdump", version = env!("CARGO_PKG_VERSION"))]
 struct Opts {
     /// Stop after this many bytes (accepts 4k, 2M, 0x100)
-    #[hasami(short = 'n', long = "length", value_name = "BYTES")]
+    #[kanna(short = 'n', long = "length", value_name = "BYTES")]
     length: Option<Size>,
     /// Skip this many bytes from the start of each input
-    #[hasami(short, value_name = "BYTES", default = Size(0))]
+    #[kanna(short, value_name = "BYTES", default = Size(0))]
     skip: Size,
     /// Bytes per line
-    #[hasami(short, default = 16)]
+    #[kanna(short, default = 16)]
     width: usize,
     /// How to print the offset column
-    #[hasami(value_name = "STYLE", default = String::from("hex"), possible = ["hex", "dec", "oct", "none"])]
+    #[kanna(value_name = "STYLE", default = String::from("hex"), possible = ["hex", "dec", "oct", "none"])]
     offset: String,
     /// Show every line instead of collapsing repeated ones into '*'
-    #[hasami(short = 'v', long = "no-squeeze")]
+    #[kanna(short = 'v', long = "no-squeeze")]
     no_squeeze: bool,
     /// Files to dump (standard input when none)
-    #[hasami(positional)]
+    #[kanna(positional)]
     files: Vec<PathBuf>,
 }
 

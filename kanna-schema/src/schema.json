@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/odd/kanna/schema/command-v1.json",
+  "title": "kanna command definition",
+  "description": "Everything a kanna parser accepts for one command, including hidden arguments and subcommands. Produced by kanna_schema::to_json.",
+  "$ref": "#/$defs/command",
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "about",
+        "long_about",
+        "after_help",
+        "help_flag",
+        "version_flag",
+        "subcommand_required",
+        "args",
+        "groups",
+        "requires",
+        "subcommands",
+        "before_help",
+        "long_version",
+        "args_override_self",
+        "arg_required_else_help",
+        "infer_long_args",
+        "infer_subcommands",
+        "external_subcommands",
+        "examples"
+      ],
+      "properties": {
+        "format": {
+          "type": "integer",
+          "const": 2,
+          "description": "Document format version; present on the root command only."
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "about": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "long_about": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "after_help": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "before_help": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text shown at the top of help, before the description."
+        },
+        "long_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text printed by --version when it differs from -V."
+        },
+        "args_override_self": {
+          "type": "boolean",
+          "description": "Repeating any argument replaces its value instead of being an error."
+        },
+        "arg_required_else_help": {
+          "type": "boolean",
+          "description": "With no arguments at all, help is printed and the exit status is 2."
+        },
+        "infer_long_args": {
+          "type": "boolean",
+          "description": "Unambiguous prefixes of long option names are accepted."
+        },
+        "infer_subcommands": {
+          "type": "boolean",
+          "description": "Unambiguous prefixes of subcommand names are accepted."
+        },
+        "external_subcommands": {
+          "type": "boolean",
+          "description": "An unknown first positional is accepted as an external subcommand."
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Example command lines shown in help and checked by Command::check_examples."
+        },
+        "help_flag": {
+          "type": "boolean",
+          "description": "Whether -h/--help is accepted."
+        },
+        "version_flag": {
+          "type": "boolean",
+          "description": "Whether -V/--version is accepted."
+        },
+        "subcommand_required": {
+          "type": "boolean"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/arg"
+          }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "description": "Pairs [a, b]: if argument id a is present, b must be present.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "subcommands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/subcommand"
+          }
+        }
+      }
+    },
+    "arg": {
+      "type": "object",
+      "required": [
+        "id",
+        "long",
+        "short",
+        "aliases",
+        "short_aliases",
+        "positional",
+        "takes_value",
+        "value_name",
+        "value_optional",
+        "required",
+        "many",
+        "count",
+        "hidden",
+        "global",
+        "help",
+        "default",
+        "default_missing",
+        "possible_values",
+        "env",
+        "dynamic_completion",
+        "visible_aliases",
+        "last_wins",
+        "greedy",
+        "trailing",
+        "delimiter",
+        "long_help",
+        "help_heading",
+        "requires",
+        "conflicts_with",
+        "required_unless",
+        "required_if_eq",
+        "requires_if",
+        "value_type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "long": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Long name without dashes."
+        },
+        "short": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Short name, one character."
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visible_aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Long names that are accepted and listed in help."
+        },
+        "short_aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "positional": {
+          "type": "boolean"
+        },
+        "takes_value": {
+          "type": "boolean"
+        },
+        "value_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "integer",
+            "float",
+            "boolean",
+            "string",
+            "path",
+            "other",
+            null
+          ],
+          "description": "Category of the value's Rust type; null for flags and counters."
+        },
+        "value_optional": {
+          "type": "boolean",
+          "description": "The value may be omitted (--opt[=VALUE])."
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "many": {
+          "type": "boolean",
+          "description": "May repeat, collecting every value."
+        },
+        "count": {
+          "type": "boolean",
+          "description": "A counting flag (-vvv)."
+        },
+        "last_wins": {
+          "type": "boolean",
+          "description": "Repeating the argument replaces the value instead of being an error."
+        },
+        "greedy": {
+          "type": "boolean",
+          "description": "Each occurrence takes every following non-option argument."
+        },
+        "trailing": {
+          "type": "boolean",
+          "description": "Once the first value is seen, every remaining argument is a value."
+        },
+        "delimiter": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Character each value is split on, if any."
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "global": {
+          "type": "boolean",
+          "description": "Accepted by every subcommand below the defining command."
+        },
+        "help": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "long_help": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Help shown by --help instead of `help`."
+        },
+        "help_heading": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Help section the argument is listed under."
+        },
+        "default": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Default value as shown in help."
+        },
+        "default_missing": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Value used when the option is given without one."
+        },
+        "possible_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dynamic_completion": {
+          "type": "boolean",
+          "description": "A runtime completion function is attached."
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ids that must be present when this argument is."
+        },
+        "conflicts_with": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ids that cannot be given together with this argument."
+        },
+        "required_unless": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ids whose presence lifts the requirement for this argument."
+        },
+        "required_if_eq": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "[id, value] pairs: the argument is required when id has value."
+        },
+        "requires_if": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "[value, id] pairs: giving value makes id required."
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "name",
+        "members",
+        "required",
+        "exclusive"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "exclusive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "subcommand": {
+      "type": "object",
+      "required": [
+        "name",
+        "aliases",
+        "hidden",
+        "about",
+        "command",
+        "visible_aliases"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visible_aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Alternative names shown in help."
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "about": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "command": {
+          "$ref": "#/$defs/command"
+        }
+      }
+    }
+  }
+}

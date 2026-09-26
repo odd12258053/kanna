@@ -1,6 +1,6 @@
 [package]
-name = "hasami-example-sift"
-description = "A small grep, written with the hasami builder. Not published."
+name = "kanna-example-sift"
+description = "A small grep, written with the kanna builder. Not published."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,7 +12,7 @@ name = "sift"
 path = "src/main.rs"
 
 [dependencies]
-hasami = { workspace = true, features = ["help", "suggest", "color"] }
+kanna = { workspace = true, features = ["help", "suggest", "color"] }
 
 [lints]
 workspace = true

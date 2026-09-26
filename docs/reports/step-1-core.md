@@ -1,30 +1,30 @@
-# Step 1 report: `hasami-core`
+# Step 1 report: `kanna-core`
 
 Date: 2026-09-26. Toolchain: rustc 1.98.1 stable (x86_64-unknown-linux-gnu),
 MSRV check with 1.85, fuzzing with nightly.
 
 ## What was built
 
-* `hasami-core/src/lib.rs`: the lexer, 857 lines including docs and unit
+* `kanna-core/src/lib.rs`: the lexer, 857 lines including docs and unit
   tests. Zero dependencies, `#![forbid(unsafe_code)]`.
-* `hasami-core/tests/lexer.rs`: 66 behavioural tests covering every row of
+* `kanna-core/tests/lexer.rs`: 66 behavioural tests covering every row of
   ADR-0003 (attached/separate/optional/multiple values, clusters, `--`, `-`,
   empty strings, `--opt=`, `-o=val`, error recovery, non-UTF-8 bytes on Unix).
-* `hasami-core/tests/pseudo_fuzz.rs`: 200 000 PRNG-generated command lines
+* `kanna-core/tests/pseudo_fuzz.rs`: 200 000 PRNG-generated command lines
   through the invariant harness on stable, in 0.5 s.
-* `hasami-core/fuzz/`: libFuzzer target sharing the same harness.
+* `kanna-core/fuzz/`: libFuzzer target sharing the same harness.
 
 ## Measurements
 
 | Check | Result |
 |-------|--------|
-| `cargo test -p hasami-core` | 70 tests + 1 doctest pass |
-| `cargo +1.85 test -p hasami-core --no-default-features` | pass |
+| `cargo test -p kanna-core` | 70 tests + 1 doctest pass |
+| `cargo +1.85 test -p kanna-core --no-default-features` | pass |
 | `cargo clippy --all-targets -- -D warnings` | clean |
 | `cargo doc` with `-D warnings` | clean |
 | `cargo +nightly fuzz run lexer -- -max_total_time=90` | 3 914 552 runs, 0 crashes, 437 edges covered |
 | Size delta of sample CLI vs empty baseline (`size` profile) | **13.5 KiB** (budget: 20 KiB) |
-| Clean build of `hasami-core` (dev / release) | 0.17 s / 0.23 s wall (budget: 2 s) |
+| Clean build of `kanna-core` (dev / release) | 0.17 s / 0.23 s wall (budget: 2 s) |
 | Clean build of sample CLI, `size` profile (LTO) | 2.4 s wall |
 
 ## Design points that needed a decision

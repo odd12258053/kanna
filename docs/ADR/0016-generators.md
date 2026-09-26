@@ -10,7 +10,7 @@ parser that reflects what is *accepted* rather than what help shows.
 
 ## Decision
 
-### `hasami-complete`
+### `kanna-complete`
 
 * One static generator per shell (bash, zsh, fish, PowerShell, nushell)
   over a shared, eagerly built `Node` tree (visible subcommands, options,
@@ -18,9 +18,9 @@ parser that reflects what is *accepted* rather than what help shows.
   Hidden items are omitted, as in help. `Shell` implements `FromStr` so a
   `completions <SHELL>` subcommand needs no extra code.
 * Dynamic completion protocol, one for all shells: the wrapper script
-  sets `_HASAMI_COMPLETE=<shell>`, `_HASAMI_COMPLETE_WORDS` (all words
+  sets `_KANNA_COMPLETE=<shell>`, `_KANNA_COMPLETE_WORDS` (all words
   joined by `U+001F`, binary name first, current word last) and
-  `_HASAMI_COMPLETE_INDEX`, then runs the binary. The binary calls
+  `_KANNA_COMPLETE_INDEX`, then runs the binary. The binary calls
   `dynamic::complete_from_env(&cmd)` before parsing; it prints one
   candidate per line (`value<TAB>help`, or `value:help` for zsh) and
   exits 0. `U+001F` was chosen over NUL because every shell can pass it in
@@ -34,7 +34,7 @@ parser that reflects what is *accepted* rather than what help shows.
 * The bash script is syntax-checked in tests when `bash` is available;
   other shells are checked structurally only.
 
-### `hasami-doc`
+### `kanna-doc`
 
 * `manpage` (roff with `man` macros; `NAME`, `SYNOPSIS`, `DESCRIPTION`,
   `ARGUMENTS`, `OPTIONS`, `SUBCOMMANDS` with one `.SS` per subcommand,
@@ -44,7 +44,7 @@ parser that reflects what is *accepted* rather than what help shows.
 * Annotations (`[default: ..]`, `[possible values: ..]`, `[env: ..]`)
   are rendered exactly as in `--help` so the three views agree.
 
-### `hasami-schema`
+### `kanna-schema`
 
 * `to_json` / `to_json_pretty` write a document by hand (no serde) with
   `"format": 1` on the root; every argument, group, `requires` pair and
@@ -56,7 +56,7 @@ parser that reflects what is *accepted* rather than what help shows.
 
 ## Consequences
 
-* All three crates depend on `hasami` with the `help` feature (for usage
+* All three crates depend on `kanna` with the `help` feature (for usage
   lines) and use only public getters (ADR-0015).
 * Adding a field to `ArgDef` means adding a getter, a schema property, and
   a bump of `FORMAT_VERSION` if consumers must care.

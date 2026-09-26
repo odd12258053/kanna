@@ -3,12 +3,12 @@
 //! completion generated from the same definition.
 //!
 //! ```text
-//! cargo run -p hasami-example-todo -- add Buy milk
-//! cargo run -p hasami-example-todo -- add --priority high Fix the roof
-//! cargo run -p hasami-example-todo -- list
-//! cargo run -p hasami-example-todo -- done 1
-//! cargo run -p hasami-example-todo -- completions zsh
-//! TODO_FILE=/tmp/other.txt cargo run -p hasami-example-todo -- list --all
+//! cargo run -p kanna-example-todo -- add Buy milk
+//! cargo run -p kanna-example-todo -- add --priority high Fix the roof
+//! cargo run -p kanna-example-todo -- list
+//! cargo run -p kanna-example-todo -- done 1
+//! cargo run -p kanna-example-todo -- completions zsh
+//! TODO_FILE=/tmp/other.txt cargo run -p kanna-example-todo -- list --all
 //! ```
 //!
 //! File format, one task per line: `[ ] (A) text` for an open task with
@@ -20,15 +20,15 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-use hasami::{Cli, Error};
-use hasami_complete::Shell;
+use kanna::{Cli, Error};
+use kanna_complete::Shell;
 
-hasami::value_enum! {
+kanna::value_enum! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     enum Priority { High = "high", Normal = "normal", Low = "low" }
 }
 
-hasami::cli! {
+kanna::cli! {
     /// Keep a todo list in a text file
     #[name = "todo", version = env!("CARGO_PKG_VERSION")]
     #[after_help = "The list lives in ./todo.txt unless --file or TODO_FILE says otherwise."]
@@ -221,7 +221,7 @@ fn run(args: Args) -> Result<(), Error> {
             println!("removed {} finished task(s)", before - tasks.len());
         }
         Cmd::Completions(c) => {
-            print!("{}", hasami_complete::generate(c.shell, &Args::command()));
+            print!("{}", kanna_complete::generate(c.shell, &Args::command()));
         }
     }
     Ok(())

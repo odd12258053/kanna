@@ -39,7 +39,7 @@ worth fixing explicitly because they shape every layer above.
 
 ## Consequences
 
-* The declarative layer (`hasami`) is built entirely on this public API; it
+* The declarative layer (`kanna`) is built entirely on this public API; it
   gets no private hooks. If it turns out to need one, that is a signal the
   core API is missing something for everyone.
 * Error messages in the core say **what** went wrong and **which option**;

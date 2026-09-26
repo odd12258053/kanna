@@ -12,7 +12,7 @@ Numbers are only meaningful if the method is fixed and reproducible.
 ## Decision
 
 * **One sample CLI, many implementations.** `benches/src/bin/` holds the
-  same five-option, one-positional CLI (ADR-0007) written with `hasami-core`,
+  same five-option, one-positional CLI (ADR-0007) written with `kanna-core`,
   the builder, the `cli!` macro, and each competing library. The competing
   libraries sit behind one Cargo feature *each* (`clap`, `lexopt`, ...), so
   a build-time measurement of one library never compiles another, and the
@@ -31,8 +31,8 @@ Numbers are only meaningful if the method is fixed and reproducible.
   all features; `cargo fmt --check`; clippy with `-D warnings` for all and
   no features; `cargo doc` with `-D warnings`; `cargo deny check`
   (`deny.toml`: no wildcard versions, no duplicate versions, licence
-  allow-list, `syn` banned outside `hasami-derive`); a check that the
-  default feature set of `hasami` has **zero** third-party dependencies;
+  allow-list, `syn` banned outside `kanna-derive`); a check that the
+  default feature set of `kanna` has **zero** third-party dependencies;
   the size and build-time gates; and a 60-second libFuzzer run on nightly.
 * Size regressions are investigated with `cargo bloat --profile size`.
   Findings so far are recorded in the step reports so that the next person

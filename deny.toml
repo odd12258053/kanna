@@ -4,7 +4,7 @@
 # never the case for the checks below.
 [graph]
 all-features = false
-exclude = ["hasami-benches"]
+exclude = ["kanna-benches"]
 # Dev-dependencies (trycmd for snapshot tests) are not part of what users
 # compile; they may bring syn and serde.
 exclude-dev = true
@@ -23,7 +23,7 @@ wildcards = "deny"
 # The default graph must stay dependency-free; syn is only reachable through
 # the `derive` feature (checked separately in CI).
 deny = [
-    { crate = "syn", wrappers = ["hasami-derive"] },
+    { crate = "syn", wrappers = ["kanna-derive"] },
 ]
 
 [sources]

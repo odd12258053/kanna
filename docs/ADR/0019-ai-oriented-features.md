@@ -4,7 +4,7 @@ Status: Accepted (2026-09-26)
 
 ## Context
 
-Two situations were studied: a language model writing a CLI with hasami,
+Two situations were studied: a language model writing a CLI with kanna,
 and an agent calling a finished CLI as a tool. The first fails on
 hallucinated settings and missing tests; the second fails on parsing
 `--help` text and free-form error messages. Twelve candidates were
@@ -13,8 +13,8 @@ proposed; five were chosen for the first batch.
 ## Decision
 
 1. **One-page reference and a Claude Code skill.**
-   `docs/ai/hasami-reference.md` lists every public name and setting with
-   the parsing rules and a clap → hasami table; `.claude/skills/hasami/SKILL.md`
+   `docs/ai/kanna-reference.md` lists every public name and setting with
+   the parsing rules and a clap → kanna table; `.claude/skills/kanna/SKILL.md`
    is the workflow (read the reference, pick a layer, prove the
    definition with `validate` and `check_examples`). The reference is the
    only document that promises completeness; the README stays a tour.
@@ -22,7 +22,7 @@ proposed; five were chosen for the first batch.
 2. **`cli!` rejects unknown settings with a list of valid ones.** A
    fallback arm in each settings muncher emits `compile_error!` with the
    setting name and the full list, matching what the derive already did.
-   `hasami/tests/ui/` pins the messages with `trybuild` (feature
+   `kanna/tests/ui/` pins the messages with `trybuild` (feature
    `derive`, so the test runs in the all-features CI job).
 
 3. **Examples in the definition.** `Command::example("app add cake")`
@@ -35,7 +35,7 @@ proposed; five were chosen for the first batch.
    automatically: it parses, and the automatic `validate` runs inside
    parsing.
 
-4. **Tool definitions from a `Command`** (`hasami_schema::tool`).
+4. **Tool definitions from a `Command`** (`kanna_schema::tool`).
    `tools(&cmd)` yields one `Tool` per runnable command (the root unless
    `subcommand_required`, and every subcommand) with a JSON Schema input
    built from the arguments: ids as property names, flags → boolean,
@@ -54,7 +54,7 @@ proposed; five were chosen for the first batch.
    with `ErrorKind::name()` as the stable kind string; `Error::arg()` /
    `with_arg` name the argument concerned (the parser sets it for
    value, missing-value, repeat, requires and conflict errors);
-   `HASAMI_ERROR_FORMAT=json` switches `print`/`exit` to one JSON line on
+   `KANNA_ERROR_FORMAT=json` switches `print`/`exit` to one JSON line on
    stderr for usage errors (help and version stay text on stdout). The
    feature is off by default because the JSON writer and the env check
    cost about 5 KiB.

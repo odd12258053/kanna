@@ -30,4 +30,4 @@ standards and must be fixed.
 
 * The declarative layer uses only the public API of the core; nothing was
   added to the core for it.
-* All of the above is pinned by `hasami/tests/builder.rs`.
+* All of the above is pinned by `kanna/tests/builder.rs`.

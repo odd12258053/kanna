@@ -2,8 +2,8 @@
 # Build the size-gate samples with the `size` profile and report each
 # binary's size relative to the empty baseline.
 #
-# Usage: benches/size.sh                 # hasami variants
-#        benches/size.sh --check         # hasami variants, fail over budget
+# Usage: benches/size.sh                 # kanna variants
+#        benches/size.sh --check         # kanna variants, fail over budget
 #        benches/size.sh --compare       # plus clap/lexopt/pico-args/argh/bpaf
 #        benches/size.sh core decl:help  # selected "bin[:features]" variants
 set -euo pipefail
@@ -38,9 +38,9 @@ budget() {
 
 build() { # bin features
   if [ -n "$2" ]; then
-    cargo build -q --profile size -p hasami-benches --bin "$1" --features "$2"
+    cargo build -q --profile size -p kanna-benches --bin "$1" --features "$2"
   else
-    cargo build -q --profile size -p hasami-benches --bin "$1"
+    cargo build -q --profile size -p kanna-benches --bin "$1"
   fi
 }
 

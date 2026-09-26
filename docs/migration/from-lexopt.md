@@ -1,13 +1,13 @@
 # From lexopt
 
-`hasami-core` is a superset of lexopt's API with the same shape, so most
+`kanna-core` is a superset of lexopt's API with the same shape, so most
 programs port by changing the crate path.
 
-| lexopt | hasami-core |
+| lexopt | kanna-core |
 |--------|-------------|
-| `lexopt::Parser::from_env()` | `hasami_core::Parser::from_env()` |
+| `lexopt::Parser::from_env()` | `kanna_core::Parser::from_env()` |
 | `Parser::from_iter`, `Parser::from_args` | same |
-| `use lexopt::prelude::*` | `use hasami_core::prelude::*` |
+| `use lexopt::prelude::*` | `use kanna_core::prelude::*` |
 | `Arg::Short(c)`, `Arg::Long(s)`, `Arg::Value(v)` | same |
 | `p.next()?`, `p.value()?`, `p.optional_value()`, `p.values()?`, `p.raw_args()?` | same; `optional_value()` returns `Result` (see below) |
 | `p.bin_name()` | same, plus `bin_name_os()` |
@@ -26,5 +26,5 @@ Differences:
   of an error; the raw bytes are recoverable with `value()`.
 * Windows non-Unicode handling uses no `unsafe` (ADR-0004).
 
-When you outgrow the loop, `hasami::Command::try_parse_with(&mut parser)`
+When you outgrow the loop, `kanna::Command::try_parse_with(&mut parser)`
 lets the declarative layer take over an existing core parser.

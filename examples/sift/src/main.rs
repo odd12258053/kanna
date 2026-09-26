@@ -2,9 +2,9 @@
 //! `help`, `suggest` and `color` features.
 //!
 //! ```text
-//! cargo run -p hasami-example-sift -- -rn "fn main" examples
-//! cargo run -p hasami-example-sift -- -e hasami -e clap -il README.md
-//! cargo run -p hasami-example-sift -- --recursve x .      # "did you mean"
+//! cargo run -p kanna-example-sift -- -rn "fn main" examples
+//! cargo run -p kanna-example-sift -- -e kanna -e clap -il README.md
+//! cargo run -p kanna-example-sift -- --recursve x .      # "did you mean"
 //! ```
 #![forbid(unsafe_code)]
 
@@ -13,7 +13,7 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use hasami::{Arg, Command, Error, Matches};
+use kanna::{Arg, Command, Error, Matches};
 
 struct Options {
     patterns: Vec<String>,

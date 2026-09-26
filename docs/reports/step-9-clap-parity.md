@@ -35,7 +35,7 @@ definition validation.
 | Matches | `ids()` |
 | Generators | schema format 2 with every new field; doc and completion generators show/offer visible aliases and long help |
 
-Tests: `hasami/tests/extended.rs` (25 cases), parity cases in
+Tests: `kanna/tests/extended.rs` (25 cases), parity cases in
 `tests/macro.rs` and `tests/derive.rs` (flatten, value enums, every new
 setting), updated repeat tests in `tests/builder.rs`, schema shape test.
 Workspace total: 208 tests, all green with default, no and all features.
@@ -97,7 +97,7 @@ features, `-D warnings`), rustdoc with `-D warnings`, and the tests.
 * **`ValueEnum` names are `&'static str`**, so `value_enum!` requires an
   explicit `Variant = "name"` (a `macro_rules!` cannot kebab-case at
   compile time) while the derive computes kebab-case and accepts
-  `#[hasami(name = "..")]`.
+  `#[kanna(name = "..")]`.
 
 ## Not done / follow-ups
 

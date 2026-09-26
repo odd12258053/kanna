@@ -1,13 +1,13 @@
 # From xflags
 
 xflags describes the interface with a small grammar inside `xflags::xflags!`
-and generates a struct plus a hand-rolled parser. `hasami::cli!` plays the
+and generates a struct plus a hand-rolled parser. `kanna::cli!` plays the
 same role with a syntax closer to Rust and lowers to a runtime `Command`,
 which is what gives it help, suggestions, completions and schemas.
 
-| xflags | hasami `cli!` |
+| xflags | kanna `cli!` |
 |--------|---------------|
-| `xflags::xflags! { cmd app { .. } }` | `hasami::cli! { struct App { .. } }` |
+| `xflags::xflags! { cmd app { .. } }` | `kanna::cli! { struct App { .. } }` |
 | `optional -v, --verbose` | `#[short] verbose: bool` |
 | `optional -n, --number n: u32` | `#[short] number: Option<u32>` |
 | `required --name s: String` | `name: String` |

@@ -8,8 +8,8 @@ Date: 2026-09-26. Machine and toolchain as in the step 4/5 report.
   layer, feature table, comparison table, principles, links.
 * `CHANGELOG.md` (Keep a Changelog), `LICENSE-MIT`, `LICENSE-APACHE`.
 * `docs/migration/`: guides from clap, argh, bpaf, lexopt, pico-args, xflags.
-* `hasami/examples/`: `core`, `builder`, `macro`, `derive`, `extras`.
-* `hasami/tests/snapshots.rs` + `tests/cmd/*.toml`: trycmd snapshots of
+* `kanna/examples/`: `core`, `builder`, `macro`, `derive`, `extras`.
+* `kanna/tests/snapshots.rs` + `tests/cmd/*.toml`: trycmd snapshots of
   help, version, success and five error shapes on the `builder` example.
 * ADR-0016 (generators); ADR index complete through 0016.
 
@@ -23,7 +23,7 @@ Date: 2026-09-26. Machine and toolchain as in the step 4/5 report.
 | `cargo doc --workspace --no-deps --all-features` with `-D warnings` | clean |
 | `cargo +1.85 check --workspace --all-features --all-targets` (MSRV) | pass |
 | `cargo deny check` | advisories, bans, licenses, sources ok |
-| Third-party dependencies of `hasami` with default features | 0 |
+| Third-party dependencies of `kanna` with default features | 0 |
 | `benches/size.sh --check --compare` | pass: core 13.5 KiB (≤ 20), builder+help 58.1 KiB (≤ 60), builder full / clap = 0.36 (< 0.5) |
 | `benches/build-time.sh --check` | pass: core 0.61 s (≤ 2), builder full 0.73 s (≤ 4) |
 | `cargo +nightly fuzz run lexer` 30 s | 1.76 M runs, 0 crashes |

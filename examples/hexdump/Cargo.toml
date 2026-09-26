@@ -1,5 +1,5 @@
 [package]
-name = "hasami-example-hexdump"
+name = "kanna-example-hexdump"
 description = "A hex dumper written with #[derive(Args)]. Not published."
 version.workspace = true
 edition.workspace = true
@@ -12,7 +12,7 @@ name = "hexdump"
 path = "src/main.rs"
 
 [dependencies]
-hasami = { workspace = true, features = ["help", "derive"] }
+kanna = { workspace = true, features = ["help", "derive"] }
 
 [lints]
 workspace = true

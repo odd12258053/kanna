@@ -1,9 +1,9 @@
 /target
 **/target
 Cargo.lock.bak
-/hasami-core/fuzz/artifacts
-/hasami-core/fuzz/corpus
-/hasami-core/fuzz/coverage
+/kanna-core/fuzz/artifacts
+/kanna-core/fuzz/corpus
+/kanna-core/fuzz/coverage
 
 # Editor swap files
 *.swp

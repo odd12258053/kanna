@@ -9,17 +9,25 @@ migration note here.
 
 ## [Unreleased]
 
+### Changed
+
+* The project is named **kanna** (was hasami, which was already taken on
+  crates.io): crates `kanna`, `kanna-core`, `kanna-derive`,
+  `kanna-complete`, `kanna-doc`, `kanna-schema`; attribute
+  `#[kanna(...)]`; environment variables `KANNA_ERROR_FORMAT` and
+  `_KANNA_COMPLETE*` (ADR-0020).
+
 ### Added
 
-* For AI-assisted development (ADR-0019): `docs/ai/hasami-reference.md`
+* For AI-assisted development (ADR-0019): `docs/ai/kanna-reference.md`
   (every name and setting on one page) and a Claude Code skill;
   `cli!` now reports an unknown setting with the list of valid ones;
   `Command::example` / `example = ".."` with an `Examples:` help section
   and `Command::check_examples()`; `ValueType` recorded per argument;
-  `hasami_schema::tool` (Claude / MCP tool definitions from a `Command`,
+  `kanna_schema::tool` (Claude / MCP tool definitions from a `Command`,
   and `to_argv` back to a command line); feature `json` with
   `Error::to_json`, `Error::arg`, `ErrorKind::name` and
-  `HASAMI_ERROR_FORMAT=json`.
+  `KANNA_ERROR_FORMAT=json`.
 * Feature parity with clap where it was missing (ADR-0018): `#[flatten]`,
   `greedy()` values per occurrence, `delimiter()`, per-argument
   `requires` / `conflicts_with` / `required_unless` / `required_if_eq` /
@@ -48,27 +56,27 @@ migration note here.
 
 * Example applications under `examples/` (`wc`, `sift`, `todo`, `hexdump`),
   one complete program per layer, and feature demonstrations under
-  `hasami/examples/` (`values`, `nested`, `errors`, `env`, `wrapper`).
-* `hasami-core`: dependency-free GNU/POSIX lexer (`Parser`, `Arg`,
+  `kanna/examples/` (`values`, `nested`, `errors`, `env`, `wrapper`).
+* `kanna-core`: dependency-free GNU/POSIX lexer (`Parser`, `Arg`,
   `ValueExt`, `RawArgs`, `ValuesIter`) with full non-Unicode support and a
   libFuzzer target.
-* `hasami`: declarative `Command` / `Arg<T>` builder with typed values,
+* `kanna`: declarative `Command` / `Arg<T>` builder with typed values,
   `Group` constraints, `requires`, lazy subcommands, global options,
   `--help`/`--version` (feature `help`), "did you mean" tips (feature
   `suggest`), colour (feature `color`), environment fallback (feature
   `env`).
-* `hasami::cli!`: `macro_rules!` DSL producing a typed struct and the same
+* `kanna::cli!`: `macro_rules!` DSL producing a typed struct and the same
   `Command`.
-* `hasami-derive`: `#[derive(Args)]` and `#[derive(Commands)]` (feature
-  `derive`) with `#[hasami(...)]` attributes; equivalence with `cli!` is
+* `kanna-derive`: `#[derive(Args)]` and `#[derive(Commands)]` (feature
+  `derive`) with `#[kanna(...)]` attributes; equivalence with `cli!` is
   tested.
-* `hasami::Cli` and `hasami::Subcommands` traits implemented by both
+* `kanna::Cli` and `kanna::Subcommands` traits implemented by both
   front ends.
-* `hasami-complete`: static completion scripts for bash, zsh, fish,
+* `kanna-complete`: static completion scripts for bash, zsh, fish,
   PowerShell and nushell, plus dynamic completion of values through
   `Arg::complete_with` and `complete_from_env`.
-* `hasami-doc`: manpage (roff), Markdown and HTML generation.
-* `hasami-schema`: JSON description of everything a command accepts, with a
+* `kanna-doc`: manpage (roff), Markdown and HTML generation.
+* `kanna-schema`: JSON description of everything a command accepts, with a
   JSON Schema for the format.
 * Size and build-time gates (`benches/`), CI workflow, `cargo deny`
   configuration, trycmd snapshot tests, examples for every layer.

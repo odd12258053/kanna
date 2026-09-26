@@ -5,7 +5,7 @@ Status: Accepted (2026-09-26). Amends ADR-0010 and ADR-0012.
 ## Context
 
 `docs/reports/comparison-with-clap.md` listed clap capabilities with no
-hasami equivalent. The user asked for them to be closed. Each item below
+kanna equivalent. The user asked for them to be closed. Each item below
 was weighed against the size budget; the sum did not fit in the old
 60 KiB gate, which is addressed at the end.
 
@@ -14,7 +14,7 @@ was weighed against the size budget; the sum did not fit in the old
 Everything is available in the builder and, where it applies to a field
 or a struct, in `cli!` and `#[derive(Args)]` under the same name.
 
-| Gap | hasami now |
+| Gap | kanna now |
 |-----|------------|
 | `#[command(flatten)]` | `#[flatten] field: Struct` inlines another definition's arguments, groups and constraints; `from_matches` reads them back from the same `Matches`. |
 | Several values per occurrence (`num_args(1..)`) | `Arg<Vec<T>>::greedy()`: each occurrence takes every following non-option argument, via the core's `Parser::values`. An attached value (`--exec=cmd`) limits that occurrence to one value. |
@@ -57,7 +57,7 @@ rare or expressible in application code.
 ## Consequences
 
 * Users of the default features pay about 14 KiB more per binary than
-  before; `hasami-core` and the builder without `help` are unaffected in
+  before; `kanna-core` and the builder without `help` are unaffected in
   kind (57.1 KiB without features, up from 47.5).
 * The `cli!`/derive vocabulary grew by 16 field settings and 9 command
   settings; the `cli!` documentation lists them all.

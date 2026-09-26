@@ -6,7 +6,7 @@ Status: Accepted (2026-09-26)
 
 Principle 1 of SPEC.md is full GNU/POSIX conformance. Several corners are
 not specified by POSIX and libraries disagree. This ADR fixes what
-`hasami-core` does so that higher layers, tests and documentation agree.
+`kanna-core` does so that higher layers, tests and documentation agree.
 
 ## Decision
 

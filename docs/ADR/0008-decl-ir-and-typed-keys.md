@@ -13,7 +13,7 @@ macro alike, and it has to be introspectable by the generator crates.
 
 ## Decision
 
-* The IR is `hasami::Command`: a plain, `Clone` value holding `ArgDef`s,
+* The IR is `kanna::Command`: a plain, `Clone` value holding `ArgDef`s,
   `Subcommand`s, `Group`s and `requires` pairs. Parsing takes `&Command`
   and never mutates it. Every field has a public getter and no public
   setter other than the builder methods.

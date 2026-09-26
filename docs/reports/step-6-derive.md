@@ -1,14 +1,14 @@
-# Step 6 report: `hasami-derive`
+# Step 6 report: `kanna-derive`
 
 Date: 2026-09-26. Machine and toolchain as in the step 4/5 report.
 
 ## What was built
 
-* `hasami-derive`: `#[derive(Args)]` and `#[derive(Commands)]` with
-  `#[hasami(...)]` attributes (ADR-0014); syn 2 without `full`.
-* `hasami::Cli` and `hasami::Subcommands` traits shared by the derive and
-  the `cli!` macro; `hasami::prelude`.
-* `hasami/tests/derive.rs`: equivalence test against `cli!` over 15
+* `kanna-derive`: `#[derive(Args)]` and `#[derive(Commands)]` with
+  `#[kanna(...)]` attributes (ADR-0014); syn 2 without `full`.
+* `kanna::Cli` and `kanna::Subcommands` traits shared by the derive and
+  the `cli!` macro; `kanna::prelude`.
+* `kanna/tests/derive.rs`: equivalence test against `cli!` over 15
   inputs (parses, errors, help for root and subcommands, version), every
   field kind, required subcommands.
 * `benches/src/bin/derive.rs`: the sample CLI through the derive.
@@ -31,7 +31,7 @@ Date: 2026-09-26. Machine and toolchain as in the step 4/5 report.
   generated inherent `parse()`/`command()` methods. Moving them to `Cli`
   means one definition of the parsing entry points, one place to document
   them, and generic code can be written over any definition. The price is
-  a `use hasami::Cli;` at call sites, as with clap's `Parser`.
+  a `use kanna::Cli;` at call sites, as with clap's `Parser`.
 * **Raw-token setting values** keep syn small (no `full`): the derive
   never needs to understand the expression, only to paste it into a
   method call.

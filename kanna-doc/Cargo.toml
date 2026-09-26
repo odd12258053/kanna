@@ -1,0 +1,20 @@
+[package]
+name = "kanna-doc"
+description = "manpage (roff), Markdown and HTML documentation generated from a kanna command definition."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+env = ["kanna/env"]
+
+[dependencies]
+kanna = { workspace = true, features = ["help"] }
+
+[lints]
+workspace = true

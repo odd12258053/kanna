@@ -59,8 +59,8 @@ jobs:
       # third-party dependencies at all.
       - name: no dependencies without derive
         run: |
-          cargo tree -p hasami --edges normal --prefix none | sort -u
-          test "$(cargo tree -p hasami --edges normal --prefix none | grep -v -E '^hasami' | wc -l)" = 0
+          cargo tree -p kanna --edges normal --prefix none | sort -u
+          test "$(cargo tree -p kanna --edges normal --prefix none | grep -v -E '^kanna' | wc -l)" = 0
 
   size:
     name: size gate
@@ -91,6 +91,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz --locked
       # `+nightly` overrides the stable toolchain pinned by rust-toolchain.toml.
-      - run: cd hasami-core && cargo +nightly fuzz run lexer -- -max_total_time=60 -max_len=256
+      - run: cd kanna-core && cargo +nightly fuzz run lexer -- -max_total_time=60 -max_len=256
         env:
           RUSTFLAGS: ""

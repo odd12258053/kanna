@@ -9,17 +9,17 @@ diagnostics, examples, tool definitions, and structured errors.
 
 | Item | Where | Notes |
 |------|-------|-------|
-| One-page reference | `docs/ai/hasami-reference.md` | every public name and setting, the parsing rules, a testing recipe, clap → hasami table |
-| Claude Code skill | `.claude/skills/hasami/SKILL.md` | workflow: read the reference, pick a layer, prove the definition |
-| Unknown-setting diagnostics | `hasami/src/macros.rs` | fallback arms with `compile_error!` naming the setting and listing the valid ones, for field, command and variant settings; `hasami/tests/ui/` (trybuild, feature `derive`) pins three messages, verified on stable and 1.85 |
+| One-page reference | `docs/ai/kanna-reference.md` | every public name and setting, the parsing rules, a testing recipe, clap → kanna table |
+| Claude Code skill | `.claude/skills/kanna/SKILL.md` | workflow: read the reference, pick a layer, prove the definition |
+| Unknown-setting diagnostics | `kanna/src/macros.rs` | fallback arms with `compile_error!` naming the setting and listing the valid ones, for field, command and variant settings; `kanna/tests/ui/` (trybuild, feature `derive`) pins three messages, verified on stable and 1.85 |
 | Examples | `Command::example`, `example = ".."` (cli!/derive), `Command::check_examples`, `get_examples` | `Examples:` section in help after the options; `.SH EXAMPLES` / `## Examples` / `<h>Examples` in the doc crate; `examples` in the JSON schema; a shell-like word splitter (`shell_words`) handles quotes and `# comments` |
 | Value types | `ValueType`, `ArgDef::value_type` | recorded from the Rust type at definition time; `value_type` in the JSON schema |
-| Tool definitions | `hasami_schema::tool` (`Tool`, `tools`, `to_json`, `Tool::to_json` / `to_mcp_json`, `to_argv`) | one tool per runnable command; JSON Schema inputs; a 150-line JSON reader keeps the crate dependency-free; `to_argv` validates by parsing |
-| Structured errors | feature `json`: `Error::to_json`, `Error::arg` / `with_arg`, `ErrorKind::name`, `HASAMI_ERROR_FORMAT=json` | the parser names the argument for value, missing-value, repeat, requires and conflict errors |
-| Example program | `hasami/examples/extras.rs` `tools` subcommand | prints definitions or converts a call |
+| Tool definitions | `kanna_schema::tool` (`Tool`, `tools`, `to_json`, `Tool::to_json` / `to_mcp_json`, `to_argv`) | one tool per runnable command; JSON Schema inputs; a 150-line JSON reader keeps the crate dependency-free; `to_argv` validates by parsing |
+| Structured errors | feature `json`: `Error::to_json`, `Error::arg` / `with_arg`, `ErrorKind::name`, `KANNA_ERROR_FORMAT=json` | the parser names the argument for value, missing-value, repeat, requires and conflict errors |
+| Example program | `kanna/examples/extras.rs` `tools` subcommand | prints definitions or converts a call |
 
 Tests added: 4 in `tests/extended.rs`, 1 each in `tests/macro.rs` and
-`tests/derive.rs`, 3 compile-fail cases, 5 in `hasami-schema::tool`.
+`tests/derive.rs`, 3 compile-fail cases, 5 in `kanna-schema::tool`.
 Workspace total: 220 tests, green with default, no and all features;
 fmt, clippy (both feature modes, `-D warnings`), rustdoc `-D warnings`.
 

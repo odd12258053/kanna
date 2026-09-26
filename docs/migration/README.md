@@ -1,7 +1,7 @@
 # Migration guides
 
-hasami deliberately has **no** compatibility layer for other parsers
-(SPEC.md §6). These guides map each library's concepts onto hasami's so a
+kanna deliberately has **no** compatibility layer for other parsers
+(SPEC.md §6). These guides map each library's concepts onto kanna's so a
 port is mechanical.
 
 * [From clap](from-clap.md)
@@ -13,5 +13,5 @@ port is mechanical.
 
 Common to all: values are `OsString` until you ask for a type; `--help`
 and `--version` are synthetic and can be disabled; every error is a
-`hasami::Error` with `kind()`, `message()`, `tip()`, `usage()`; `parse()`
+`kanna::Error` with `kind()`, `message()`, `tip()`, `usage()`; `parse()`
 exits, `try_parse()` returns.

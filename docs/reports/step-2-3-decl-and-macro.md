@@ -1,18 +1,18 @@
-# Steps 2 and 3 report: `hasami` declarative layer and `cli!` macro
+# Steps 2 and 3 report: `kanna` declarative layer and `cli!` macro
 
 Date: 2026-09-26. Toolchain: rustc 1.98.1 stable, MSRV check with 1.85.
 
 ## What was built
 
-* `hasami/src/arg.rs`: `Arg<T>` type-state builder and `ArgDef` (ADR-0008).
-* `hasami/src/command.rs`: `Command`, `Subcommand` (eager or lazy), `Group`.
-* `hasami/src/parse.rs`: the engine on top of `hasami-core` (ADR-0009):
+* `kanna/src/arg.rs`: `Arg<T>` type-state builder and `ArgDef` (ADR-0008).
+* `kanna/src/command.rs`: `Command`, `Subcommand` (eager or lazy), `Group`.
+* `kanna/src/parse.rs`: the engine on top of `kanna-core` (ADR-0009):
   typed values parsed at parse time, subcommands with global options,
   required/exclusive/requires constraints, env fallback (feature `env`).
-* `hasami/src/help.rs`: help/usage rendering (ADR-0010), feature `help`.
-* `hasami/src/error.rs`: `Error { kind, message, tip, usage }`.
-* `hasami/src/suggest.rs`: Jaro-Winkler "did you mean" (feature `suggest`).
-* `hasami/src/macros.rs` + `macro_support.rs`: the `cli!` DSL (ADR-0011).
+* `kanna/src/help.rs`: help/usage rendering (ADR-0010), feature `help`.
+* `kanna/src/error.rs`: `Error { kind, message, tip, usage }`.
+* `kanna/src/suggest.rs`: Jaro-Winkler "did you mean" (feature `suggest`).
+* `kanna/src/macros.rs` + `macro_support.rs`: the `cli!` DSL (ADR-0011).
 * Tests: 45 builder tests, 9 macro tests (including a builder/macro
   equivalence test), 5 env tests (run in a child process because setting
   environment variables is `unsafe` on edition 2024), 2 no-help tests.

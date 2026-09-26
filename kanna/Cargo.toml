@@ -1,0 +1,66 @@
+[package]
+name = "kanna"
+description = "A layered command line argument parser: a tiny GNU/POSIX-correct core with an optional declarative builder, macro DSL, help, suggestions and derive."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "../README.md"
+
+[features]
+default = ["help", "std"]
+# Reserved: forwards to the core. See ADR-0002.
+std = ["kanna-core/std"]
+# `-h/--help`, `-V/--version` and help text rendering.
+help = []
+# "did you mean" suggestions for unknown options, subcommands and values.
+suggest = []
+# ANSI colour in help and error output (honours NO_COLOR, CLICOLOR, CLICOLOR_FORCE and TTY detection).
+color = []
+# Environment variable fallback for option values.
+env = []
+# `Error::to_json` and `KANNA_ERROR_FORMAT=json` for machine-readable errors.
+json = []
+# `#[derive(Args)]` (pulls in syn; isolated in kanna-derive).
+derive = ["dep:kanna-derive"]
+# Everything except `derive`. Shell completion, documentation and schema
+# generation live in the `kanna-complete`, `kanna-doc` and `kanna-schema`
+# crates, which depend on this one (see ADR-0015).
+full = ["help", "suggest", "color", "env", "json"]
+
+[dependencies]
+kanna-core = { workspace = true }
+kanna-derive = { workspace = true, optional = true }
+
+[dev-dependencies]
+kanna-complete = { path = "../kanna-complete", version = "0.1.0" }
+kanna-doc = { path = "../kanna-doc", version = "0.1.0" }
+kanna-schema = { path = "../kanna-schema", version = "0.1.0" }
+trycmd = { version = "0.15", features = ["examples"] }
+trybuild = "1.0"
+
+[[example]]
+name = "derive"
+required-features = ["derive"]
+
+[[example]]
+name = "env"
+required-features = ["env"]
+
+[[test]]
+name = "snapshots"
+required-features = ["help"]
+
+[[test]]
+name = "ui"
+required-features = ["derive"]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Clean build times of the sample CLIs, dev and release profiles.
 #
-# Usage: benches/build-time.sh            # hasami variants
+# Usage: benches/build-time.sh            # kanna variants
 #        benches/build-time.sh --compare  # plus the competing libraries
 #        benches/build-time.sh --check    # fail when over budget
 #
@@ -34,10 +34,10 @@ cargo fetch -q
 # The first build on a cold machine (fresh CI runner, cold disk cache) can
 # take several times longer than the steady state and says nothing about
 # the library. Warm up untimed, then report the best of two runs.
-cargo build -q -p hasami-benches --bin empty
-cargo build -q --release -p hasami-benches --bin empty
+cargo build -q -p kanna-benches --bin empty
+cargo build -q --release -p kanna-benches --bin empty
 timed_once() { # profile bin features
-  local flags=(-q --profile "$1" -p hasami-benches --bin "$2")
+  local flags=(-q --profile "$1" -p kanna-benches --bin "$2")
   [ -n "$3" ] && flags+=(--features "$3")
   cargo clean -q --profile "$1" 2>/dev/null || cargo clean -q
   local start end

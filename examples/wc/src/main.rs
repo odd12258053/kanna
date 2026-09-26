@@ -1,12 +1,12 @@
-//! `wc`: count lines, words, bytes and characters, on `hasami-core` alone.
+//! `wc`: count lines, words, bytes and characters, on `kanna-core` alone.
 //!
 //! The lexer knows nothing about the options, so `--help`, `--version`,
 //! the usage text and the "unknown option" message are all written here.
 //! In exchange the binary depends on nothing but `std`.
 //!
 //! ```text
-//! cargo run -p hasami-example-wc -- -lw src/main.rs Cargo.toml
-//! echo hello world | cargo run -p hasami-example-wc
+//! cargo run -p kanna-example-wc -- -lw src/main.rs Cargo.toml
+//! echo hello world | cargo run -p kanna-example-wc
 //! ```
 #![forbid(unsafe_code)]
 
@@ -15,7 +15,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 use std::process::ExitCode;
 
-use hasami_core::prelude::*;
+use kanna_core::prelude::*;
 
 const USAGE: &str = "Usage: wc [OPTION]... [FILE]...";
 const HELP: &str = "\
@@ -49,7 +49,7 @@ enum Action {
     Version,
 }
 
-fn parse_args(parser: &mut Parser) -> Result<Action, hasami_core::Error> {
+fn parse_args(parser: &mut Parser) -> Result<Action, kanna_core::Error> {
     let mut o = Options::default();
     while let Some(arg) = parser.next()? {
         match arg {
@@ -189,7 +189,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(Action::Version) => {
-            println!("wc (hasami example) {}", env!("CARGO_PKG_VERSION"));
+            println!("wc (kanna example) {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         Err(e) => {

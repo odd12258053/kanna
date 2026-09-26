@@ -3,29 +3,29 @@
 
 use std::ffi::OsString;
 
-use hasami::{Args, Cli};
+use kanna::{Args, Cli};
 
 /// Size-gate sample
 #[derive(Args)]
-#[hasami(name = "sample", version = "0.1.0")]
+#[kanna(name = "sample", version = "0.1.0")]
 struct Sample {
     /// Say more
-    #[hasami(short)]
+    #[kanna(short)]
     verbose: bool,
     /// Your name
-    #[hasami(short)]
+    #[kanna(short)]
     name: Option<String>,
     /// Repeat
-    #[hasami(short, default = 1)]
+    #[kanna(short, default = 1)]
     count: u32,
     /// Where to write
-    #[hasami(short)]
+    #[kanna(short)]
     output: Option<OsString>,
     /// When to colour
-    #[hasami(default = String::from("auto"), default_missing = String::from("always"))]
+    #[kanna(default = String::from("auto"), default_missing = String::from("always"))]
     color: String,
     /// What to read
-    #[hasami(positional)]
+    #[kanna(positional)]
     input: OsString,
 }
 

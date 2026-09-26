@@ -11,7 +11,7 @@ platform's native string encoding).
 
 ## Decision
 
-* `hasami-core` declares a `std` feature that is on by default, but the
+* `kanna-core` declares a `std` feature that is on by default, but the
   crate does not compile without it today. The feature exists so that turning
   the crate `no_std + alloc` later is an additive change rather than a
   breaking one.
@@ -26,5 +26,5 @@ platform's native string encoding).
 
 * No `#![no_std]` attribute in the core yet, and no code paths that would
   need it.
-* The `std` feature of `hasami` forwards to `hasami-core/std` so that a
+* The `std` feature of `kanna` forwards to `kanna-core/std` so that a
   future `alloc`-only core is reachable from the facade.

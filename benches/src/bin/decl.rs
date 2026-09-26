@@ -3,7 +3,7 @@
 
 use std::ffi::OsString;
 
-use hasami::{Arg, Command};
+use kanna::{Arg, Command};
 
 fn main() {
     let verbose = Arg::new("verbose").short('v').help("Say more");

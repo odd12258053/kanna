@@ -1,0 +1,21 @@
+[package]
+name = "kanna-schema"
+description = "Machine-readable JSON description of a kanna command definition."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+# Forwarded so that `env` fallbacks appear in the document.
+env = ["kanna/env"]
+
+[dependencies]
+kanna = { workspace = true }
+
+[lints]
+workspace = true

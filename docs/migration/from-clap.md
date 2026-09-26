@@ -2,7 +2,7 @@
 
 ## Builder
 
-| clap 4 | hasami |
+| clap 4 | kanna |
 |--------|--------|
 | `Command::new("app")` | `Command::new("app")` |
 | `.version(..)`, `.about(..)`, `.long_about(..)`, `.after_help(..)` | same names |
@@ -55,11 +55,11 @@
 
 Behavioural differences worth knowing:
 
-* Repeated single-value options and flags are errors in both; hasami's
+* Repeated single-value options and flags are errors in both; kanna's
   opt-out is `last_wins()` / `args_override_self()`.
 * `--opt val` for an option with an optional value: clap may consume
-  `val`; hasami never does (attached form only).
-* `--opt -1` and `--opt --other`: hasami takes the next argument as the
+  `val`; kanna never does (attached form only).
+* `--opt -1` and `--opt --other`: kanna takes the next argument as the
   value (GNU style); clap needs `allow_hyphen_values`.
 * Help wraps at `term_width`, `$COLUMNS` or 100 columns; clap detects the
   terminal width itself. `-h` and `--help` differ in both.
@@ -69,19 +69,19 @@ Behavioural differences worth knowing:
 
 ## Derive
 
-| clap | hasami |
+| clap | kanna |
 |------|--------|
-| `#[derive(Parser)]` | `#[derive(Args)]` + `use hasami::Cli` |
+| `#[derive(Parser)]` | `#[derive(Args)]` + `use kanna::Cli` |
 | `#[derive(Subcommand)]` | `#[derive(Commands)]` |
-| `#[command(name, version, about, long_about, after_help)]` | `#[hasami(name = .., version = .., about = .., long_about = .., after_help = ..)]` |
-| `#[arg(short, long)]` | `#[hasami(short)]` (long is implied) |
-| `#[arg(default_value_t = 1)]` | `#[hasami(default = 1)]` |
-| `#[arg(value_enum)]` | `#[hasami(value_enum)]` with a `#[derive(ValueEnum)]` type (or `possible = [..]` with any `FromStr` type) |
-| `#[arg(action = ArgAction::Count)]` on `u8` | `#[hasami(count)]` on `usize` |
-| `#[arg(env = "X")]` | `#[hasami(env = "X")]` |
-| `#[arg(index = 1)]` / bare positional | `#[hasami(positional)]` |
-| `#[command(subcommand)]` | `#[hasami(subcommand)]` |
-| `#[command(flatten)]` | `#[hasami(flatten)]` |
+| `#[command(name, version, about, long_about, after_help)]` | `#[kanna(name = .., version = .., about = .., long_about = .., after_help = ..)]` |
+| `#[arg(short, long)]` | `#[kanna(short)]` (long is implied) |
+| `#[arg(default_value_t = 1)]` | `#[kanna(default = 1)]` |
+| `#[arg(value_enum)]` | `#[kanna(value_enum)]` with a `#[derive(ValueEnum)]` type (or `possible = [..]` with any `FromStr` type) |
+| `#[arg(action = ArgAction::Count)]` on `u8` | `#[kanna(count)]` on `usize` |
+| `#[arg(env = "X")]` | `#[kanna(env = "X")]` |
+| `#[arg(index = 1)]` / bare positional | `#[kanna(positional)]` |
+| `#[command(subcommand)]` | `#[kanna(subcommand)]` |
+| `#[command(flatten)]` | `#[kanna(flatten)]` |
 | `#[arg(long_help, help_heading, visible_alias, requires, conflicts_with, required_unless_present, required_if_eq, requires_if, num_args(1..), value_delimiter, trailing_var_arg)]` | `long_help`, `help_heading`, `visible_alias`, `requires`, `conflicts_with`, `required_unless`, `required_if_eq = ["f", "v"]`, `requires_if = ["v", "f"]`, `greedy`, `delimiter = ','`, `trailing` |
-| `#[command(before_help, long_version, args_override_self, arg_required_else_help, infer_long_args, infer_subcommands, allow_external_subcommands, term_width)]` | same names inside `#[hasami(...)]` |
+| `#[command(before_help, long_version, args_override_self, arg_required_else_help, infer_long_args, infer_subcommands, allow_external_subcommands, term_width)]` | same names inside `#[kanna(...)]` |
 | `Cli::parse()` | `Cli::parse()` (trait method) |

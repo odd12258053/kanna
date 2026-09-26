@@ -1,13 +1,13 @@
 # From argh
 
-argh's derive maps almost one to one onto `hasami::cli!` (no proc-macro)
-or `#[derive(hasami::Args)]`.
+argh's derive maps almost one to one onto `kanna::cli!` (no proc-macro)
+or `#[derive(kanna::Args)]`.
 
-| argh | hasami (`cli!` / derive) |
+| argh | kanna (`cli!` / derive) |
 |------|--------------------------|
-| `#[derive(FromArgs)]` | `hasami::cli! { struct .. }` or `#[derive(Args)]` |
+| `#[derive(FromArgs)]` | `kanna::cli! { struct .. }` or `#[derive(Args)]` |
 | `/// doc` on the struct | same: the doc comment is the description |
-| `#[argh(switch, short = 'v')]` on `bool` | `#[short = 'v']` / `#[hasami(short = 'v')]` on `bool` |
+| `#[argh(switch, short = 'v')]` on `bool` | `#[short = 'v']` / `#[kanna(short = 'v')]` on `bool` |
 | `#[argh(option)]` on `Option<T>` | nothing needed: `Option<T>` is an optional value |
 | `#[argh(option, default = "1")]` on `T` | `#[default = 1]` (typed expression, not a string) |
 | `#[argh(option)]` on `Vec<T>` | nothing needed |

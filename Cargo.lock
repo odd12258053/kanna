@@ -250,95 +250,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
-name = "hasami"
-version = "0.1.0"
-dependencies = [
- "hasami-complete",
- "hasami-core",
- "hasami-derive",
- "hasami-doc",
- "hasami-schema",
- "trybuild",
- "trycmd",
-]
-
-[[package]]
-name = "hasami-benches"
-version = "0.1.0"
-dependencies = [
- "argh",
- "bpaf",
- "clap",
- "hasami",
- "hasami-core",
- "lexopt",
- "pico-args",
-]
-
-[[package]]
-name = "hasami-complete"
-version = "0.1.0"
-dependencies = [
- "hasami",
-]
-
-[[package]]
-name = "hasami-core"
-version = "0.1.0"
-
-[[package]]
-name = "hasami-derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "hasami-doc"
-version = "0.1.0"
-dependencies = [
- "hasami",
-]
-
-[[package]]
-name = "hasami-example-hexdump"
-version = "0.1.0"
-dependencies = [
- "hasami",
-]
-
-[[package]]
-name = "hasami-example-sift"
-version = "0.1.0"
-dependencies = [
- "hasami",
-]
-
-[[package]]
-name = "hasami-example-todo"
-version = "0.1.0"
-dependencies = [
- "hasami",
- "hasami-complete",
-]
-
-[[package]]
-name = "hasami-example-wc"
-version = "0.1.0"
-dependencies = [
- "hasami-core",
-]
-
-[[package]]
-name = "hasami-schema"
-version = "0.1.0"
-dependencies = [
- "hasami",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -381,6 +292,95 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
+name = "kanna"
+version = "0.1.0"
+dependencies = [
+ "kanna-complete",
+ "kanna-core",
+ "kanna-derive",
+ "kanna-doc",
+ "kanna-schema",
+ "trybuild",
+ "trycmd",
+]
+
+[[package]]
+name = "kanna-benches"
+version = "0.1.0"
+dependencies = [
+ "argh",
+ "bpaf",
+ "clap",
+ "kanna",
+ "kanna-core",
+ "lexopt",
+ "pico-args",
+]
+
+[[package]]
+name = "kanna-complete"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+]
+
+[[package]]
+name = "kanna-core"
+version = "0.1.0"
+
+[[package]]
+name = "kanna-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "kanna-doc"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+]
+
+[[package]]
+name = "kanna-example-hexdump"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+]
+
+[[package]]
+name = "kanna-example-sift"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+]
+
+[[package]]
+name = "kanna-example-todo"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+ "kanna-complete",
+]
+
+[[package]]
+name = "kanna-example-wc"
+version = "0.1.0"
+dependencies = [
+ "kanna-core",
+]
+
+[[package]]
+name = "kanna-schema"
+version = "0.1.0"
+dependencies = [
+ "kanna",
+]
 
 [[package]]
 name = "lexopt"

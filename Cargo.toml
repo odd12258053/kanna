@@ -1,12 +1,12 @@
 [workspace]
 resolver = "3"
 members = [
-    "hasami",
-    "hasami-core",
-    "hasami-derive",
-    "hasami-complete",
-    "hasami-doc",
-    "hasami-schema",
+    "kanna",
+    "kanna-core",
+    "kanna-derive",
+    "kanna-complete",
+    "kanna-doc",
+    "kanna-schema",
     "benches",
     # Complete applications built on each layer; see examples/README.md.
     "examples/wc",
@@ -20,15 +20,15 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/odd12258053/hasami"
+repository = "https://github.com/odd12258053/kanna"
 authors = ["odd <odd@agraffe.info>"]
 keywords = ["cli", "arguments", "parser", "argparse", "getopt"]
 categories = ["command-line-interface"]
 
 [workspace.dependencies]
-hasami-core = { path = "hasami-core", version = "0.1.0", default-features = false }
-hasami = { path = "hasami", version = "0.1.0", default-features = false }
-hasami-derive = { path = "hasami-derive", version = "0.1.0" }
+kanna-core = { path = "kanna-core", version = "0.1.0", default-features = false }
+kanna = { path = "kanna", version = "0.1.0", default-features = false }
+kanna-derive = { path = "kanna-derive", version = "0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

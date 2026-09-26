@@ -20,7 +20,7 @@ SPEC.md §5 sets size budgets (core ≤ 20 KiB, `help` ≤ 60 KiB, all features
 * Every other `benches/src/bin/*.rs` implements the **same** sample CLI:
   five options (`-v/--verbose` flag, `-n/--name <STRING>`,
   `-c/--count <U32>`, `-o/--output <PATH>`, `--color[=WHEN]`) and one
-  positional `INPUT`. One binary per hasami layer and per competing
+  positional `INPUT`. One binary per kanna layer and per competing
   library.
 * `benches/size.sh` builds them and prints bytes and delta in KiB. CI runs
   it and fails when a delta exceeds its budget.

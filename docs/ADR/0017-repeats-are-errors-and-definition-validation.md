@@ -5,7 +5,7 @@ Status: Accepted (2026-09-26). Amends ADR-0009.
 ## Context
 
 The comparison with clap (`docs/reports/comparison-with-clap.md`) named
-two defaults where hasami caught fewer user and programmer mistakes than
+two defaults where kanna caught fewer user and programmer mistakes than
 clap:
 
 * A single-value option or a flag given twice (`-n1 -n2`, `--shout
@@ -61,5 +61,5 @@ clap:
   `last_wins()`; the migration guide says so.
 * A definition mistake shows up in the first test or debug run, with a
   message naming the command and the argument.
-* `hasami/tests/extended.rs` pins the messages; `hasami/tests/builder.rs`
+* `kanna/tests/extended.rs` pins the messages; `kanna/tests/builder.rs`
   pins the repeat behaviour.

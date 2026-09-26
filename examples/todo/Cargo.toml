@@ -1,6 +1,6 @@
 [package]
-name = "hasami-example-todo"
-description = "A todo list manager written with the hasami cli! macro. Not published."
+name = "kanna-example-todo"
+description = "A todo list manager written with the kanna cli! macro. Not published."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,8 +12,8 @@ name = "todo"
 path = "src/main.rs"
 
 [dependencies]
-hasami = { workspace = true, features = ["help", "suggest", "env"] }
-hasami-complete = { path = "../../hasami-complete", version = "0.1.0" }
+kanna = { workspace = true, features = ["help", "suggest", "env"] }
+kanna-complete = { path = "../../kanna-complete", version = "0.1.0" }
 
 [lints]
 workspace = true

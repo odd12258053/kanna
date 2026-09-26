@@ -50,7 +50,7 @@ strings, so the design has to route around those limits.
 * Every value type needs `FromStr + Clone + Send + Sync + 'static` with a
   `Display` error, the same bound as `Arg::value`.
 * The macro and the builder produce the same `Command`; the equivalence
-  test in `hasami/tests/macro.rs` compares help, matches and errors between
+  test in `kanna/tests/macro.rs` compares help, matches and errors between
   a hand-built and a macro-built definition. The derive macro (step 6)
   will be checked the same way.
 * Cost: about 5.5 KiB on top of the builder for the sample CLI, paid only

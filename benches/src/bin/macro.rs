@@ -3,7 +3,7 @@
 
 use std::ffi::OsString;
 
-hasami::cli! {
+kanna::cli! {
     /// Size-gate sample
     #[name = "sample", version = "0.1.0"]
     struct Args {
@@ -24,7 +24,7 @@ hasami::cli! {
 }
 
 fn main() {
-    use hasami::Cli;
+    use kanna::Cli;
     let a = Args::parse();
     println!(
         "{} {:?} {} {:?} {:?} {:?}",

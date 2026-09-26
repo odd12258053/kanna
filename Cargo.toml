@@ -13,6 +13,7 @@ members = [
     "examples/sift",
     "examples/todo",
     "examples/hexdump",
+    "examples/units",
 ]
 
 [workspace.package]

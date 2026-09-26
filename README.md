@@ -173,8 +173,9 @@ hidden subcommands), `errors` (`try_parse`, groups, `requires`, custom errors),
 lexer with `--` pass-through, multi-value options and error recovery).
 
 Complete applications, one per layer, live under [`examples/`](examples/README.md):
-a `wc` on the bare lexer, a grep with the builder, a todo list with `cli!` and a
-`hexdump` with derive. Run them with `cargo run -p kanna-example-<name>`.
+a `wc` on the bare lexer, a grep with the builder, a todo list with `cli!`, a
+`hexdump` with derive, and `units`, a converter an AI agent can drive through
+`kanna-schema` tool definitions. Run them with `cargo run -p kanna-example-<name>`.
 
 ## Features of `kanna`
 

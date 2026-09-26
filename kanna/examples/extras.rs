@@ -120,10 +120,7 @@ fn main() {
                         .unwrap_or_else(|| "{}".to_owned());
                     match kanna_schema::tool::to_argv(&cmd, &tool, &input) {
                         Ok(argv) => println!("{argv:?}"),
-                        Err(e) => {
-                            eprintln!("error: {e}");
-                            std::process::exit(2);
-                        }
+                        Err(e) => e.exit(),
                     }
                 }
             }

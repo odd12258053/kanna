@@ -50,6 +50,7 @@ method, the `cli!` setting and the `#[kanna(...)]` setting share a name.
 | `Arg<Option<T>>` | `.default_with(v, "text")` | `Arg<T>` | for `T` without `Display` |
 | `Arg<Option<T>>` | `.default_missing(v)` / `default_missing_with(v, "text")` | `Arg<Option<T>>` | optional value `--color[=WHEN]`: `--color` alone gives `v`; value must be attached (`--color=never`, `-cnever`); `--color never` treats `never` as a positional. Call before `required`/`default`/`many` |
 | `Arg<Option<T>>` | `.possible(["a", "b"])` | `Arg<Option<T>>` | allowed spellings, checked before parsing, listed in help |
+| `Arg<Option<T>>` | `.possible_with_help([("a", "Plan A"), ("b", "Plan B")])` | `Arg<Option<T>>` | `possible` plus a description per value: shown in `--help` and in tool definitions |
 | `Arg<Option<T>>` | `.complete_with(\|prefix\| vec![..])` | `Arg<Option<T>>` | dynamic completion candidates |
 | `Arg<Option<T>>` | `.env("VAR")` | `Arg<Option<T>>` | feature `env`; used when absent, before the default, validated like a value |
 | `Arg<Option<T>>` | `.many()` | `Arg<Vec<T>>` | repeatable, one value per occurrence; for a positional: all remaining positionals |
@@ -167,13 +168,18 @@ Setting `KANNA_ERROR_FORMAT=json` (feature `json`) makes `print()`/
 kanna::value_enum! {
     /// doc comment allowed
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]   // Clone is required
-    pub enum Level { Low = "low", High = "high" }  // explicit names
+    pub enum Level {
+        /// Whisper                                 // variant doc = help(): shown in --help and tool definitions
+        Low = "low",
+        High = "high",                              // explicit names
+    }
 }
-// generates: impl ValueEnum (VALUES, name(), from_name(), names()), FromStr (Err = String), Display
+// generates: impl ValueEnum (VALUES, name(), help(), from_name(), names()), FromStr (Err = String), Display
 ```
 
-With `derive`: `#[derive(kanna::ValueEnum, Clone)] enum Level { Low,
-#[kanna(name = "very-high")] High }` — names default to kebab-case.
+With `derive`: `#[derive(kanna::ValueEnum, Clone)] enum Level { /// Whisper
+Low, #[kanna(name = "very-high")] High }` — names default to kebab-case,
+doc comments are the help.
 
 ## 3. `cli!` (no proc-macro) and `#[derive(Args)]`
 
@@ -243,8 +249,10 @@ Command settings: `name = expr`, `version = expr`, `long_version = expr`,
 `term_width = expr`.
 
 Variant settings: `name = "x"`, `alias = "x"`, `visible_alias = "x"`,
-`hidden`. The variant doc comment is the summary; without one the
-payload struct's doc is used.
+`hidden`, `no_tool` (in help, but not an agent tool: for `tools`,
+`call`, `setup`-style commands). The variant doc comment is the summary;
+without one the payload struct's doc is used. Builder equivalent:
+`Subcommand::from(cmd).no_tool()`.
 
 `#[derive(Args)]` (feature `derive`) takes the same settings inside
 `#[kanna(...)]` on the struct, fields and (with `#[derive(Commands)]`)
@@ -307,17 +315,26 @@ kanna_complete::dynamic::complete_from_env(&cmd);           // first thing in ma
 kanna_complete::generate(kanna_complete::Shell::Bash, &cmd) // static script; Zsh, Fish, PowerShell, Nushell
 kanna_complete::generate_dynamic(shell, "bin")              // script that calls the binary back
 kanna_doc::manpage(&cmd); kanna_doc::markdown(&cmd); kanna_doc::html(&cmd)
-kanna_schema::to_json(&cmd); kanna_schema::to_json_pretty(&cmd) // JSON description, format 2, JSON_SCHEMA validates it
+kanna_schema::to_json(&cmd); kanna_schema::to_json_pretty(&cmd) // JSON description, format 3, JSON_SCHEMA validates it
 kanna_schema::tool::tools(&cmd)                             // Vec<Tool { name, path, description, input_schema }>: one per runnable command
 tool.to_json() / tool.to_mcp_json(); kanna_schema::tool::to_json(&tools, mcp: bool)
-kanna_schema::tool::to_argv(&cmd, "app_add", r#"{"count": 2}"#) // JSON tool input → Vec<OsString>, verified by parsing
+kanna_schema::tool::to_argv(&cmd, "app_add", r#"{"count": 2}"#) // JSON tool input → Result<Vec<OsString>, kanna::Error>, verified by parsing
 ```
 
 Tool input schemas use the argument ids as property names: flags are
-booleans, counters integers, values typed by `ValueType` (`Integer`,
-`Float`, `Boolean`, `String`, `Path`, `Other`), `possible` → `enum`,
-`many` → array, `required` → required; hidden arguments are omitted;
-global options of parents are included.
+booleans, counters and unsigned integers integers with `minimum: 0`,
+values typed by `ValueType` (`Integer`, `Unsigned`, `Float`, `Boolean`,
+`String`, `Path`, `Other`), `possible` → `enum` (with the values'
+descriptions appended to the property description as
+`[possible values: c = Celsius, ...]`), `many` → array, `required` →
+required; the description is `long_about` else `about`, so put the
+output format in `long_about`. Hidden arguments are omitted; `hidden`
+and `no_tool` subcommands produce no tool; global options of parents are
+included. `to_argv` errors are `kanna::Error`s: `kind()` and `arg()` are
+the parser's own for a command line that does not parse,
+`UnexpectedArgument` / `InvalidValue` with the key as `arg` for a bad
+key or value shape, `Custom` for malformed JSON or an unknown tool; print
+them with `e.exit()` like any other.
 
 ## 7. Testing recipe
 

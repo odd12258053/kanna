@@ -34,8 +34,12 @@ description: Build or change a command line interface with the kanna crates (kan
 
 5. **For agent-facing tools** use `kanna_schema::tool::tools(&cmd)` for
    Claude/MCP tool definitions and `tool::to_argv` to turn a tool call
-   into a command line; set `KANNA_ERROR_FORMAT=json` (feature `json`)
-   to get structured errors on stderr.
+   into a command line (its errors are `kanna::Error`s with `kind` and
+   `arg`); set `KANNA_ERROR_FORMAT=json` (feature `json`) to get
+   structured errors on stderr. Give every value-enum variant a `///`
+   comment (it becomes the legend in the tool schema), write the output
+   format in `long_about`, and mark the driver's own commands (`tools`,
+   `call`, ...) `no_tool` so the agent does not see them.
 
 6. **Keep the budgets.** In this repository, run
    `benches/size.sh --check` and `benches/build-time.sh --check` when

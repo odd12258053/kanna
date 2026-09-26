@@ -31,6 +31,7 @@ enum DCmd {
     #[kanna(name = "rm", alias = "remove")]
     Remove(DRemove),
     /// List things
+    #[kanna(no_tool)]
     List,
 }
 
@@ -265,6 +266,7 @@ fn required_subcommand_through_derive() {
 
 #[derive(kanna::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
+    /// No checks
     Fast,
     #[kanna(name = "very-slow")]
     Slow,
@@ -332,6 +334,22 @@ fn value_enum_derive() {
     assert_eq!("very-slow".parse::<Mode>(), Ok(Mode::Slow));
     assert_eq!(Mode::Fast.to_string(), "fast");
     assert!("slow".parse::<Mode>().is_err());
+    assert_eq!(Mode::Fast.help(), Some("No checks"));
+    assert_eq!(Mode::Slow.help(), None);
+    assert_eq!(
+        Parity::command()
+            .find_arg("mode")
+            .unwrap()
+            .possible_value_help(),
+        ["No checks", ""]
+    );
+}
+
+#[test]
+fn no_tool_through_derive() {
+    let cmd = DGreet::command();
+    let list = cmd.find_subcommand("list").unwrap();
+    assert!(list.is_no_tool() && !list.is_hidden());
 }
 
 #[test]
@@ -374,7 +392,7 @@ fn parity_settings_through_derive() {
     let long = cmd.render_help();
     assert!(long.starts_with("Banner\n\nParity settings\n\nUsage: parity"));
     assert!(
-        long.contains("[possible values: fast, very-slow]"),
+        long.contains("[possible values: fast = No checks,\n                     very-slow]"),
         "{long}"
     );
     assert!(long.contains("Tuning:\n"), "{long}");

@@ -155,6 +155,13 @@ fn missing_required_positional() {
     let (cmd, ..) = greet();
     let e = cmd.try_parse_args(["-n", "2"]).unwrap_err();
     assert_eq!(e.kind(), ErrorKind::MissingRequired);
+    // One missing argument is named; several are not.
+    assert_eq!(e.arg(), Some("THING"));
+    let a = Arg::new("a").value::<String>().required();
+    let b = Arg::new("b").value::<String>().required();
+    let two = Command::new("two").arg(&a).arg(&b);
+    let e2 = two.try_parse_args([] as [&str; 0]).unwrap_err();
+    assert_eq!((e2.kind(), e2.arg()), (ErrorKind::MissingRequired, None));
     assert_eq!(
         e.to_string(),
         "error: the following required arguments were not provided:\n  <THING>\n\nUsage: greet [OPTIONS] <THING>\n\nFor more information, try '--help'."

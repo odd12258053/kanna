@@ -364,7 +364,53 @@ fn ids_lists_explicit_arguments() {
 kanna::value_enum! {
     /// Colour choice
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum When { Auto = "auto", Always = "always", Never = "never" }
+    enum When {
+        /// Only on a terminal
+        Auto = "auto",
+        #[allow(dead_code)]
+        Always = "always",
+        /// Plain text
+        ///
+        /// even when piped
+        Never = "never",
+    }
+}
+
+#[test]
+fn value_enum_variant_docs_are_help() {
+    assert_eq!(When::Auto.help(), Some("Only on a terminal"));
+    assert_eq!(When::Always.help(), None);
+    // Only the first line of a longer comment.
+    assert_eq!(When::Never.help(), Some("Plain text"));
+
+    let color = Arg::new("color").value_enum::<When>();
+    assert_eq!(
+        color.def().possible_value_help(),
+        ["Only on a terminal", "", "Plain text"]
+    );
+    let plain = Arg::new("plain").value::<String>().possible(["a", "b"]);
+    assert!(plain.def().possible_value_help().is_empty());
+
+    let unit = Arg::new("unit")
+        .value::<String>()
+        .possible_with_help([("c", "Celsius"), ("f", "Fahrenheit")]);
+    assert_eq!(unit.def().possible_values(), ["c", "f"]);
+    assert_eq!(unit.def().possible_value_help(), ["Celsius", "Fahrenheit"]);
+}
+
+#[test]
+fn no_tool_is_recorded_on_subcommands() {
+    let cmd = Command::new("app")
+        .subcommand(Subcommand::from(Command::new("run")))
+        .subcommand(Subcommand::from(Command::new("setup")).no_tool())
+        .subcommand(Subcommand::lazy("tools", || Command::new("tools")).no_tool());
+    let flags: Vec<bool> = cmd
+        .subcommands()
+        .iter()
+        .map(Subcommand::is_no_tool)
+        .collect();
+    assert_eq!(flags, [false, true, true]);
+    assert!(!cmd.subcommands()[1].is_hidden());
 }
 
 #[test]
@@ -407,6 +453,20 @@ mod help {
         } else {
             cmd.render_short_help()
         }
+    }
+
+    #[test]
+    fn value_help_appears_in_long_help_only() {
+        let color = Arg::new("color").value_enum::<When>().help("Colour");
+        let cmd = Command::new("app").arg(&color).term_width(120);
+        assert!(
+            help_of(&cmd, true).contains(
+                "[possible values: auto = Only on a terminal, always, never = Plain text]"
+            ),
+            "{}",
+            help_of(&cmd, true)
+        );
+        assert!(help_of(&cmd, false).contains("[possible values: auto, always, never]"));
     }
 
     #[test]
@@ -572,7 +632,8 @@ fn examples_are_checked_and_shown() {
 fn value_types_are_recorded() {
     use kanna::ValueType;
     use std::path::PathBuf;
-    let i = Arg::new("i").value::<u16>();
+    let i = Arg::new("i").value::<i32>();
+    let u = Arg::new("u").value::<u16>();
     let f = Arg::new("f").value::<f64>();
     let b = Arg::new("b").value::<bool>();
     let s = Arg::new("s").value::<String>();
@@ -581,6 +642,7 @@ fn value_types_are_recorded() {
     let w = Arg::new("w").value_enum::<When>();
     let flag = Arg::new("flag");
     assert_eq!(i.def().value_type(), Some(ValueType::Integer));
+    assert_eq!(u.def().value_type(), Some(ValueType::Unsigned));
     assert_eq!(f.def().value_type(), Some(ValueType::Float));
     assert_eq!(b.def().value_type(), Some(ValueType::Boolean));
     assert_eq!(s.def().value_type(), Some(ValueType::String));

@@ -92,6 +92,8 @@ pub struct Subcommand {
     pub(crate) aliases: Vec<String>,
     pub(crate) visible_aliases: Vec<String>,
     pub(crate) hidden: bool,
+    /// Listed in help, but not offered to AI agents as a tool.
+    pub(crate) no_tool: bool,
     pub(crate) build: Build,
 }
 
@@ -113,6 +115,7 @@ impl From<Command> for Subcommand {
             aliases: Vec::new(),
             visible_aliases: Vec::new(),
             hidden: false,
+            no_tool: false,
             build: Build::Eager(Arc::new(cmd)),
         }
     }
@@ -131,6 +134,7 @@ impl Subcommand {
             aliases: Vec::new(),
             visible_aliases: Vec::new(),
             hidden: false,
+            no_tool: false,
             build: Build::Lazy(Arc::new(build)),
         }
     }
@@ -169,6 +173,16 @@ impl Subcommand {
         self
     }
 
+    /// Keep the subcommand in help and completion, but leave it (and its
+    /// own subcommands) out of the tool definitions that `kanna-schema`
+    /// derives for AI agents. For commands meant for people or for the
+    /// driver itself: printing the tool list, running a tool from JSON,
+    /// interactive setup.
+    pub fn no_tool(mut self) -> Subcommand {
+        self.no_tool = true;
+        self
+    }
+
     /// The subcommand name.
     pub fn name(&self) -> &str {
         &self.name
@@ -194,6 +208,12 @@ impl Subcommand {
     /// Is the subcommand hidden from help?
     pub fn is_hidden(&self) -> bool {
         self.hidden
+    }
+
+    /// Is the subcommand kept out of agent tool definitions
+    /// ([`no_tool`](Subcommand::no_tool))?
+    pub fn is_no_tool(&self) -> bool {
+        self.no_tool
     }
 
     /// Build (or clone) the full definition. The entry's name and summary

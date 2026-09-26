@@ -29,3 +29,4 @@ Numbers are never reused. A superseded ADR keeps its file and gets
 | [0018](0018-clap-parity-features.md) | Closing the feature gaps against clap (and the size budget change) | Accepted |
 | [0019](0019-ai-oriented-features.md) | Features for CLIs written by, and used by, AI agents | Accepted |
 | [0020](0020-rename-to-kanna.md) | The project is named kanna (was hasami; the name was taken on crates.io) | Accepted |
+| [0021](0021-agent-facing-definitions.md) | Agent-facing definitions: value help, `no_tool`, typed tool errors | Accepted |

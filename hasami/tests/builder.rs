@@ -67,11 +67,42 @@ fn all_option_syntaxes() {
 }
 
 #[test]
-fn last_occurrence_wins_for_single_values() {
-    let (cmd, number, _, _) = greet();
-    let m = cmd.try_parse_args(["-n1", "-n2", "x"]).unwrap();
-    assert_eq!(m.get(&number), 2);
+fn repeated_single_value_is_an_error_by_default() {
+    let (cmd, _, shout, _) = greet();
+    let e = cmd.try_parse_args(["-n1", "-n2", "x"]).unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::Repeated);
+    assert_eq!(
+        e.message(),
+        "the argument '--number <NUMBER>' cannot be used multiple times"
+    );
+    let e = cmd.try_parse_args(["--shout", "--shout", "x"]).unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::Repeated);
+    assert_eq!(
+        e.message(),
+        "the argument '--shout' cannot be used multiple times"
+    );
+    let _ = shout;
+}
+
+#[test]
+fn last_wins_opts_into_overriding() {
+    let number = Arg::new("number").short('n').value::<u32>().last_wins();
+    let cmd = Command::new("x").arg(&number);
+    let m = cmd.try_parse_args(["-n1", "-n2"]).unwrap();
+    assert_eq!(m.get(&number), Some(2));
     assert_eq!(m.occurrences(&number), 2);
+
+    let number = Arg::new("number").short('n').value::<u32>();
+    let shout = Arg::new("shout");
+    let cmd = Command::new("x")
+        .arg(&number)
+        .arg(&shout)
+        .args_override_self();
+    let m = cmd
+        .try_parse_args(["-n1", "--shout", "-n2", "--shout"])
+        .unwrap();
+    assert_eq!(m.get(&number), Some(2));
+    assert!(m.get(&shout));
 }
 
 #[test]

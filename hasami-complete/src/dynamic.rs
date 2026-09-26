@@ -72,11 +72,13 @@ pub fn complete(cmd: &Command, words: &[String], index: usize) -> Vec<Candidate>
         if let Some(long) = w.strip_prefix("--") {
             let name = long.split('=').next().unwrap_or(long);
             if !long.contains('=') {
-                if let Some(def) = node
-                    .args()
-                    .iter()
-                    .find(|a| a.long() == Some(name) || a.aliases().iter().any(|al| al == name))
-                {
+                if let Some(def) = node.args().iter().find(|a| {
+                    a.long() == Some(name)
+                        || a.aliases()
+                            .iter()
+                            .chain(a.visible_aliases())
+                            .any(|al| al == name)
+                }) {
                     if def.takes_value() && !def.value_is_optional() {
                         want_value_for = Some(def.clone());
                     }
@@ -143,6 +145,9 @@ pub fn complete(cmd: &Command, words: &[String], index: usize) -> Vec<Candidate>
             if let Some(l) = a.long() {
                 out.push(Candidate::new(format!("--{l}"), help.clone()));
             }
+            for l in a.visible_aliases() {
+                out.push(Candidate::new(format!("--{l}"), help.clone()));
+            }
         }
         // Global options of enclosing commands are accepted too.
         for a in cmd.args() {
@@ -176,6 +181,9 @@ pub fn complete(cmd: &Command, words: &[String], index: usize) -> Vec<Candidate>
         for s in node.subcommands() {
             if !s.is_hidden() {
                 out.push(Candidate::new(s.name(), s.summary().unwrap_or("")));
+                for a in s.visible_aliases() {
+                    out.push(Candidate::new(a.as_str(), s.summary().unwrap_or("")));
+                }
             }
         }
     }

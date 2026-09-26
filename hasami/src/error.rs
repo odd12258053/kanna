@@ -27,6 +27,12 @@ pub enum ErrorKind {
     MissingSubcommand,
     /// Arguments that cannot be used together were.
     Conflict,
+    /// A single-value argument or a flag was given more than once.
+    Repeated,
+    /// No arguments were given to a command that asked for
+    /// [`arg_required_else_help`](crate::Command::arg_required_else_help);
+    /// the message is the help text, exit status 2.
+    HelpOnMissingArgs,
     /// An argument was not valid Unicode where Unicode was needed.
     NonUnicode,
     /// `--help` was requested; the message is the help text.
@@ -60,6 +66,8 @@ pub struct Error {
 pub(crate) struct HelpContext {
     pub(crate) cmd: crate::Command,
     pub(crate) path: String,
+    /// Render the `--help` (long) form rather than the `-h` form.
+    pub(crate) long: bool,
 }
 
 impl fmt::Debug for Error {
@@ -118,13 +126,21 @@ impl Error {
 
     /// Remember which command the error is about, for coloured output.
     #[cfg(feature = "color")]
-    pub(crate) fn with_help_context(mut self, cmd: &crate::Command, path: &str) -> Error {
+    pub(crate) fn with_help_context(
+        mut self,
+        cmd: &crate::Command,
+        path: &str,
+        long: bool,
+    ) -> Error {
         if self.help.is_none()
-            && (self.kind == ErrorKind::DisplayHelp || self.kind.is_usage_error())
+            && (self.kind == ErrorKind::DisplayHelp
+                || self.kind == ErrorKind::HelpOnMissingArgs
+                || self.kind.is_usage_error())
         {
             self.help = Some(Box::new(HelpContext {
                 cmd: cmd.clone(),
                 path: path.to_owned(),
+                long,
             }));
         }
         self
@@ -132,8 +148,26 @@ impl Error {
 
     /// Without the `color` feature nothing needs to be remembered.
     #[cfg(not(feature = "color"))]
-    pub(crate) fn with_help_context(self, _cmd: &crate::Command, _path: &str) -> Error {
+    pub(crate) fn with_help_context(
+        self,
+        _cmd: &crate::Command,
+        _path: &str,
+        _long: bool,
+    ) -> Error {
         self
+    }
+
+    /// The palette to render with: the command's own when colour is on for
+    /// the stream, plain otherwise.
+    fn styles_for(&self, stream: crate::Stream) -> Styles {
+        let st = Styles::for_stream(stream);
+        #[cfg(feature = "color")]
+        if !st.is_plain() {
+            if let Some(h) = &self.help {
+                return h.cmd.styles;
+            }
+        }
+        st
     }
 
     /// The kind of error.
@@ -172,7 +206,7 @@ impl Error {
     pub fn print(&self) -> std::io::Result<()> {
         use std::io::Write;
         if self.is_display() {
-            let text = self.render(&Styles::for_stream(crate::Stream::Stdout));
+            let text = self.render(&self.styles_for(crate::Stream::Stdout));
             let out = std::io::stdout();
             let mut out = out.lock();
             out.write_all(text.as_bytes())?;
@@ -182,7 +216,7 @@ impl Error {
             }
             out.flush()
         } else {
-            let text = self.render(&Styles::for_stream(crate::Stream::Stderr));
+            let text = self.render(&self.styles_for(crate::Stream::Stderr));
             let err = std::io::stderr();
             let mut err = err.lock();
             err.write_all(text.as_bytes())?;
@@ -194,10 +228,12 @@ impl Error {
     /// The message rendered with the given styles. `Display` uses
     /// [`Styles::PLAIN`].
     pub fn render(&self, st: &Styles) -> String {
-        if self.is_display() {
+        if self.is_display() || self.kind == ErrorKind::HelpOnMissingArgs {
             #[cfg(feature = "color")]
             if let Some(h) = &self.help {
-                return crate::help::render_help_styled(&h.cmd, &h.path, st);
+                if self.kind != ErrorKind::DisplayVersion {
+                    return crate::help::render_help_styled(&h.cmd, &h.path, st, h.long);
+                }
             }
             return self.message.clone();
         }
@@ -252,7 +288,11 @@ impl ErrorKind {
     fn is_usage_error(self) -> bool {
         !matches!(
             self,
-            ErrorKind::DisplayHelp | ErrorKind::DisplayVersion | ErrorKind::Io | ErrorKind::Custom
+            ErrorKind::DisplayHelp
+                | ErrorKind::DisplayVersion
+                | ErrorKind::HelpOnMissingArgs
+                | ErrorKind::Io
+                | ErrorKind::Custom
         )
     }
 }

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::arg::{Arg, ArgDef};
 use crate::error::Error;
 use crate::matches::Matches;
+use crate::style::Styles;
 
 /// A constraint over a set of arguments.
 ///
@@ -89,6 +90,7 @@ pub struct Subcommand {
     pub(crate) name: String,
     pub(crate) about: Option<String>,
     pub(crate) aliases: Vec<String>,
+    pub(crate) visible_aliases: Vec<String>,
     pub(crate) hidden: bool,
     pub(crate) build: Build,
 }
@@ -109,6 +111,7 @@ impl From<Command> for Subcommand {
             name: cmd.name.clone(),
             about: cmd.about.clone(),
             aliases: Vec::new(),
+            visible_aliases: Vec::new(),
             hidden: false,
             build: Build::Eager(Arc::new(cmd)),
         }
@@ -126,6 +129,7 @@ impl Subcommand {
             name: name.into(),
             about: None,
             aliases: Vec::new(),
+            visible_aliases: Vec::new(),
             hidden: false,
             build: Build::Lazy(Arc::new(build)),
         }
@@ -147,9 +151,15 @@ impl Subcommand {
         self
     }
 
-    /// An alternative name.
+    /// An alternative name, accepted but not shown in help.
     pub fn alias(mut self, name: impl Into<String>) -> Subcommand {
         self.aliases.push(name.into());
+        self
+    }
+
+    /// An alternative name shown in help as `[aliases: name]`.
+    pub fn visible_alias(mut self, name: impl Into<String>) -> Subcommand {
+        self.visible_aliases.push(name.into());
         self
     }
 
@@ -167,9 +177,19 @@ impl Subcommand {
     pub fn summary(&self) -> Option<&str> {
         self.about.as_deref()
     }
-    /// Alternative names.
+    /// Alternative names that are not shown in help.
     pub fn aliases(&self) -> &[String] {
         &self.aliases
+    }
+    /// Alternative names that are shown in help.
+    pub fn visible_aliases(&self) -> &[String] {
+        &self.visible_aliases
+    }
+    /// The name and every alias.
+    pub(crate) fn names(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.name.as_str())
+            .chain(self.aliases.iter().map(String::as_str))
+            .chain(self.visible_aliases.iter().map(String::as_str))
     }
     /// Is the subcommand hidden from help?
     pub fn is_hidden(&self) -> bool {
@@ -205,7 +225,7 @@ impl Subcommand {
     }
 
     pub(crate) fn matches_name(&self, name: &str) -> bool {
-        self.name == name || self.aliases.iter().any(|a| a == name)
+        self.names().any(|n| n == name)
     }
 }
 
@@ -251,6 +271,17 @@ pub struct Command {
     pub(crate) subcommand_required: bool,
     pub(crate) disable_help: bool,
     pub(crate) disable_version: bool,
+    pub(crate) before_help: Option<String>,
+    pub(crate) long_version: Option<String>,
+    pub(crate) args_override_self: bool,
+    pub(crate) arg_required_else_help: bool,
+    pub(crate) infer_long_args: bool,
+    pub(crate) infer_subcommands: bool,
+    pub(crate) external_subcommands: bool,
+    /// Wrap help at this many columns; `None` means the `COLUMNS`
+    /// environment variable or 100.
+    pub(crate) term_width: Option<usize>,
+    pub(crate) styles: Styles,
 }
 
 impl Command {
@@ -270,6 +301,15 @@ impl Command {
             subcommand_required: false,
             disable_help: false,
             disable_version: false,
+            before_help: None,
+            long_version: None,
+            args_override_self: false,
+            arg_required_else_help: false,
+            infer_long_args: false,
+            infer_subcommands: false,
+            external_subcommands: false,
+            term_width: None,
+            styles: Styles::default_palette(),
         }
     }
 
@@ -298,24 +338,79 @@ impl Command {
         self
     }
 
+    /// Free text shown at the very top of help, before the description.
+    pub fn before_help(mut self, text: impl Into<String>) -> Command {
+        self.before_help = Some(text.into());
+        self
+    }
+
+    /// A longer version text printed by `--version`; `-V` keeps printing
+    /// [`version`](Command::version).
+    pub fn long_version(mut self, text: impl Into<String>) -> Command {
+        self.long_version = Some(text.into());
+        self
+    }
+
+    /// Let every argument of this command be repeated, the last value
+    /// winning, instead of reporting an error. Per-argument opt-in is
+    /// [`Arg::last_wins`].
+    pub fn args_override_self(mut self) -> Command {
+        self.args_override_self = true;
+        self
+    }
+
+    /// When the command is invoked with no arguments at all, print help to
+    /// stderr and exit with status 2
+    /// ([`ErrorKind::HelpOnMissingArgs`](crate::ErrorKind::HelpOnMissingArgs)).
+    pub fn arg_required_else_help(mut self) -> Command {
+        self.arg_required_else_help = true;
+        self
+    }
+
+    /// Accept an unambiguous prefix of a long option name (`--verb` for
+    /// `--verbose`). Exact matches always win.
+    pub fn infer_long_args(mut self) -> Command {
+        self.infer_long_args = true;
+        self
+    }
+
+    /// Accept an unambiguous prefix of a subcommand name (`inst` for
+    /// `install`).
+    pub fn infer_subcommands(mut self) -> Command {
+        self.infer_subcommands = true;
+        self
+    }
+
+    /// Treat a first positional that is not a known subcommand as an
+    /// external subcommand: it and everything after it are handed back
+    /// untouched through
+    /// [`Matches::external_subcommand`](crate::Matches::external_subcommand).
+    pub fn allow_external_subcommands(mut self) -> Command {
+        self.external_subcommands = true;
+        self
+    }
+
+    /// Wrap help text at `columns`. The default is the `COLUMNS`
+    /// environment variable when set, otherwise 100; `0` disables wrapping.
+    pub fn term_width(mut self, columns: usize) -> Command {
+        self.term_width = Some(columns);
+        self
+    }
+
+    /// The colour palette used for help and errors when colour is on
+    /// (feature `color`). Without the feature the palette has no effect.
+    pub fn styles(mut self, styles: Styles) -> Command {
+        self.styles = styles;
+        self
+    }
+
     /// Add an argument. The `Arg` is copied into the command; keep the
     /// original to read the value back with [`Matches::get`].
     ///
-    /// Ids must be unique within a command; a duplicate is a programming
-    /// error and is reported by a debug assertion.
+    /// Ids must be unique within a command. That and every other rule
+    /// about a well-formed definition is checked by
+    /// [`validate`](Command::validate), which parsing runs in debug builds.
     pub fn arg<T>(mut self, arg: &Arg<T>) -> Command {
-        debug_assert!(
-            !self.args.iter().any(|a| a.id == arg.def.id),
-            "duplicate argument id {:?} in command {:?}",
-            arg.def.id,
-            self.name
-        );
-        debug_assert!(
-            !arg.def.positional || !self.args.iter().any(|a| a.positional && a.many),
-            "positional {:?} cannot follow a repeated positional in command {:?}",
-            arg.def.id,
-            self.name
-        );
         self.args.push(arg.def.clone());
         self
     }
@@ -434,6 +529,42 @@ impl Command {
     pub fn has_help_flag(&self) -> bool {
         cfg!(feature = "help") && !self.disable_help
     }
+    /// The text printed by `--version` when it differs from `-V`.
+    pub fn get_long_version(&self) -> Option<&str> {
+        self.long_version.as_deref()
+    }
+    /// The text shown before the description in help.
+    pub fn get_before_help(&self) -> Option<&str> {
+        self.before_help.as_deref()
+    }
+    /// May every argument be repeated with the last value winning?
+    pub fn is_args_override_self(&self) -> bool {
+        self.args_override_self
+    }
+    /// Is help shown when no arguments are given?
+    pub fn is_arg_required_else_help(&self) -> bool {
+        self.arg_required_else_help
+    }
+    /// Are unambiguous prefixes of long option names accepted?
+    pub fn is_infer_long_args(&self) -> bool {
+        self.infer_long_args
+    }
+    /// Are unambiguous prefixes of subcommand names accepted?
+    pub fn is_infer_subcommands(&self) -> bool {
+        self.infer_subcommands
+    }
+    /// Are unknown subcommands passed through?
+    pub fn allows_external_subcommands(&self) -> bool {
+        self.external_subcommands
+    }
+    /// The configured help width, if one was set explicitly.
+    pub fn get_term_width(&self) -> Option<usize> {
+        self.term_width
+    }
+    /// The colour palette.
+    pub fn get_styles(&self) -> &Styles {
+        &self.styles
+    }
     /// Does the command accept `-V/--version`?
     pub fn has_version_flag(&self) -> bool {
         cfg!(feature = "help") && !self.disable_version && self.version.is_some()
@@ -447,6 +578,178 @@ impl Command {
     /// Look up a subcommand by name or alias.
     pub fn find_subcommand(&self, name: &str) -> Option<&Subcommand> {
         self.subcommands.iter().find(|s| s.matches_name(name))
+    }
+
+    // --------------------------------------------------------- validation
+
+    /// Check that the definition is well formed: unique ids and names,
+    /// positionals in a valid order, constraints that reference existing
+    /// arguments, defaults that are among the possible values, and the
+    /// same for every subcommand (lazy ones are built).
+    ///
+    /// Every problem found is returned, as `command: description`. The
+    /// parse entry points call this in debug builds and panic on a
+    /// problem, so a mistake shows up in the first test run; release builds
+    /// skip the check.
+    pub fn validate(&self) -> Result<(), Vec<String>> {
+        let mut problems = Vec::new();
+        self.validate_into(&self.name, &mut problems);
+        if problems.is_empty() {
+            Ok(())
+        } else {
+            Err(problems)
+        }
+    }
+
+    fn validate_into(&self, path: &str, out: &mut Vec<String>) {
+        let mut report = |what: String| out.push([path, ": ", &what].concat());
+        let mut ids: Vec<&str> = Vec::new();
+        // `-h/--help` and `-V/--version` are not reserved: a user-defined
+        // argument with one of those names replaces the synthetic flag.
+        let mut longs: Vec<&str> = Vec::new();
+        let mut shorts: Vec<char> = Vec::new();
+        let mut seen_optional_positional = false;
+        let mut seen_many_positional = false;
+        for a in &self.args {
+            let id = a.id.as_str();
+            if id.is_empty() {
+                report("an argument has an empty id".to_owned());
+            }
+            if ids.contains(&id) {
+                report(format!("duplicate argument id '{id}'"));
+                continue;
+            }
+            ids.push(id);
+            if a.positional {
+                if a.long.is_some() || a.short.is_some() {
+                    report(format!(
+                        "positional '{id}' cannot have a long or short name"
+                    ));
+                }
+                if a.global {
+                    report(format!("positional '{id}' cannot be global"));
+                }
+                if a.value
+                    .as_ref()
+                    .is_some_and(|v| v.default_missing.is_some())
+                {
+                    report(format!("positional '{id}' cannot have an optional value"));
+                }
+                if seen_many_positional {
+                    report(format!("positional '{id}' follows a repeated positional"));
+                }
+                if a.required && seen_optional_positional {
+                    report(format!(
+                        "required positional '{id}' follows an optional one"
+                    ));
+                }
+                if a.trailing && !a.many {
+                    report(format!(
+                        "trailing positional '{id}' must be repeated (many)"
+                    ));
+                }
+                seen_many_positional |= a.many;
+                seen_optional_positional |= !a.required;
+            } else {
+                if a.long.is_none() && a.short.is_none() {
+                    report(format!("option '{id}' has neither a long nor a short name"));
+                }
+                for l in a.long_names() {
+                    if l.is_empty() || l.starts_with('-') || l.contains(['=', ' ']) {
+                        report(format!("option '{id}' has an invalid long name '{l}'"));
+                    }
+                    if longs.contains(&l) {
+                        report(format!("long name '--{l}' is used more than once"));
+                    }
+                    longs.push(l);
+                }
+                for c in a.short.iter().chain(&a.short_aliases) {
+                    if *c == '-' || c.is_whitespace() {
+                        report(format!("option '{id}' has an invalid short name '{c}'"));
+                    }
+                    if shorts.contains(c) {
+                        report(format!("short name '-{c}' is used more than once"));
+                    }
+                    shorts.push(*c);
+                }
+                if a.trailing || (a.greedy && !a.many) {
+                    report(format!(
+                        "option '{id}' has a positional-only or many-only setting"
+                    ));
+                }
+            }
+            if a.count && a.value.is_some() {
+                report(format!("'{id}' cannot both count and take a value"));
+            }
+            if let Some(v) = &a.value {
+                if !v.possible.is_empty() {
+                    if let Some((_, d)) = &v.default {
+                        if !v.possible.contains(d) {
+                            report(format!("default '{d}' of '{id}' is not a possible value"));
+                        }
+                    }
+                }
+                if v.delimiter.is_some() && !a.many {
+                    report(format!("'{id}' has a delimiter but is not repeated (many)"));
+                }
+            }
+        }
+        // References between arguments.
+        let known = |id: &str| self.args.iter().any(|a| a.id == id);
+        for a in &self.args {
+            for r in &a.relations {
+                let other = r.other();
+                if !known(other) {
+                    report(format!("'{}' refers to unknown argument '{other}'", a.id));
+                }
+            }
+        }
+        for (a, b) in &self.requires {
+            for id in [a, b] {
+                if !known(id) {
+                    report(format!("requires refers to unknown argument '{id}'"));
+                }
+            }
+        }
+        for g in &self.groups {
+            for id in &g.members {
+                if !known(id) {
+                    report(format!(
+                        "group '{}' refers to unknown argument '{id}'",
+                        g.name
+                    ));
+                }
+            }
+            if g.exclusive && g.members.len() < 2 {
+                report(format!(
+                    "exclusive group '{}' has fewer than two members",
+                    g.name
+                ));
+            }
+        }
+        // Subcommands.
+        let mut names: Vec<&str> = Vec::new();
+        for s in &self.subcommands {
+            for n in s.names() {
+                if n.is_empty() {
+                    report("a subcommand has an empty name".to_owned());
+                }
+                if names.contains(&n) {
+                    report(format!("subcommand name '{n}' is used more than once"));
+                }
+                names.push(n);
+            }
+        }
+        if self.subcommand_required && self.subcommands.is_empty() {
+            report("subcommand_required is set but there are no subcommands".to_owned());
+        }
+        if self.args.iter().any(|a| a.positional && a.required) && !self.subcommands.is_empty() {
+            report("a required positional cannot be combined with subcommands".to_owned());
+        }
+        for s in &self.subcommands {
+            let sub = s.build();
+            sub.validate_into(&[path, " ", &s.name].concat(), out);
+        }
     }
 
     // ------------------------------------------------------------ parsing
@@ -499,10 +802,17 @@ impl Command {
         crate::parse::parse(self, parser)
     }
 
-    /// The rendered help text for this command (as printed by `--help`).
+    /// The rendered help text for this command as printed by `--help`
+    /// (long descriptions where they exist).
     #[cfg(feature = "help")]
     pub fn render_help(&self) -> String {
-        crate::help::render_help(self, &self.name)
+        crate::help::render_help(self, &self.name, true)
+    }
+
+    /// The rendered help text as printed by `-h` (short descriptions).
+    #[cfg(feature = "help")]
+    pub fn render_short_help(&self) -> String {
+        crate::help::render_help(self, &self.name, false)
     }
 
     /// The usage line for this command.

@@ -11,6 +11,32 @@ migration note here.
 
 ### Added
 
+* Feature parity with clap where it was missing (ADR-0018): `#[flatten]`,
+  `greedy()` values per occurrence, `delimiter()`, per-argument
+  `requires` / `conflicts_with` / `required_unless` / `required_if_eq` /
+  `requires_if` (`Relation`), the `ValueEnum` trait with `value_enum!`
+  and `#[derive(ValueEnum)]`, `long_help` / `long_about` shown only by
+  `--help`, `help_heading`, visible aliases, `before_help`,
+  `long_version`, help wrapping (`term_width`, `$COLUMNS`, 100), the
+  `help` subcommand, `arg_required_else_help`, `infer_long_args`,
+  `infer_subcommands`, `allow_external_subcommands` with
+  `Matches::external_subcommand`, `trailing()` positionals, custom
+  `Styles` on a command, `Matches::ids`, `Command::render_short_help`.
+* `Command::validate()`: every rule about a well-formed definition,
+  reported together; run automatically in debug builds (ADR-0017).
+* `ErrorKind::Repeated` and `ErrorKind::HelpOnMissingArgs`.
+* JSON schema format 2 with the new fields.
+
+### Changed
+
+* A single-value argument or a flag given more than once is an error;
+  `Arg::last_wins()` / `Command::args_override_self()` restore the old
+  behaviour (ADR-0017).
+* Help text is wrapped to the terminal width by default; `-h` and
+  `--help` differ when long texts are set (ADR-0018).
+* The `decl[help]` size budget is 75 KiB (was 60); the sample CLI
+  measures 71.8 KiB (ADR-0018).
+
 * Example applications under `examples/` (`wc`, `sift`, `todo`, `hexdump`),
   one complete program per layer, and feature demonstrations under
   `hasami/examples/` (`values`, `nested`, `errors`, `env`, `wrapper`).

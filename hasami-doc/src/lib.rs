@@ -401,9 +401,10 @@ fn esc(s: &str) -> String {
     out
 }
 
-/// Help text plus the `[default: ..]` style annotations `--help` shows.
+/// Help text (the long form, as `--help` shows it) plus the
+/// `[default: ..]` style annotations.
 fn describe(a: &ArgDef) -> String {
-    let mut s = a.help().unwrap_or("").to_owned();
+    let mut s = a.long_help().or(a.help()).unwrap_or("").to_owned();
     let mut extra = |t: String| {
         if !s.is_empty() {
             s.push(' ');
@@ -422,6 +423,9 @@ fn describe(a: &ArgDef) -> String {
     #[cfg(feature = "env")]
     if let Some(v) = a.env() {
         extra(format!("[env: {v}]"));
+    }
+    if !a.visible_aliases().is_empty() {
+        extra(format!("[aliases: {}]", a.visible_aliases().join(", ")));
     }
     s
 }

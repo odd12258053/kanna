@@ -46,6 +46,8 @@ pub(crate) struct ValueDef {
     #[cfg(feature = "env")]
     pub(crate) env: Option<String>,
     pub(crate) completer: Option<Completer>,
+    /// Split each occurrence on this character (`-f a,b,c`).
+    pub(crate) delimiter: Option<char>,
 }
 
 /// The untyped definition of one argument, as stored in a
@@ -68,6 +70,53 @@ pub struct ArgDef {
     pub(crate) required: bool,
     pub(crate) many: bool,
     pub(crate) count: bool,
+    /// Long names that are accepted and listed in help.
+    pub(crate) visible_aliases: Vec<String>,
+    /// Repeating a single-value argument replaces the value instead of
+    /// being an error.
+    pub(crate) last_wins: bool,
+    /// Each occurrence takes every following non-option argument.
+    pub(crate) greedy: bool,
+    /// Once this positional starts, everything left is a value for it.
+    pub(crate) trailing: bool,
+    /// Help shown by `--help`; `help` is used by `-h`.
+    pub(crate) long_help: Option<String>,
+    /// Section title in help instead of `Options`/`Arguments`.
+    pub(crate) heading: Option<String>,
+    /// Constraints involving other arguments.
+    pub(crate) relations: Vec<Relation>,
+}
+
+/// A constraint between one argument and another, declared on the
+/// argument with [`Arg::requires`], [`Arg::conflicts_with`],
+/// [`Arg::required_unless`], [`Arg::required_if_eq`] or
+/// [`Arg::requires_if`]. Ids name the other argument.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Relation {
+    /// The other argument must be present when this one is.
+    Requires(String),
+    /// The other argument cannot be present when this one is.
+    ConflictsWith(String),
+    /// This argument is required unless the other is present.
+    RequiredUnless(String),
+    /// This argument is required when the other has the given raw value.
+    RequiredIfEq(String, String),
+    /// When this argument has the given raw value, the other is required.
+    RequiresIf(String, String),
+}
+
+impl Relation {
+    /// The id of the other argument.
+    pub fn other(&self) -> &str {
+        match self {
+            Relation::Requires(id)
+            | Relation::ConflictsWith(id)
+            | Relation::RequiredUnless(id)
+            | Relation::RequiredIfEq(id, _)
+            | Relation::RequiresIf(_, id) => id,
+        }
+    }
 }
 
 impl std::fmt::Debug for ArgDef {
@@ -100,6 +149,13 @@ impl ArgDef {
             required: false,
             many: false,
             count: false,
+            visible_aliases: Vec::new(),
+            last_wins: false,
+            greedy: false,
+            trailing: false,
+            long_help: None,
+            heading: None,
+            relations: Vec::new(),
         }
     }
 
@@ -116,9 +172,13 @@ impl ArgDef {
     pub fn short(&self) -> Option<char> {
         self.short
     }
-    /// Additional long names.
+    /// Additional long names that are not shown in help.
     pub fn aliases(&self) -> &[String] {
         &self.aliases
+    }
+    /// Additional long names that are shown in help.
+    pub fn visible_aliases(&self) -> &[String] {
+        &self.visible_aliases
     }
     /// Additional short names.
     pub fn short_aliases(&self) -> &[char] {
@@ -165,6 +225,34 @@ impl ArgDef {
     /// Is this a counting flag (`-vvv`)?
     pub fn is_count(&self) -> bool {
         self.count
+    }
+    /// May a single-value argument be repeated, the last value winning?
+    pub fn is_last_wins(&self) -> bool {
+        self.last_wins
+    }
+    /// Does each occurrence take every following non-option argument?
+    pub fn is_greedy(&self) -> bool {
+        self.greedy
+    }
+    /// Does this positional swallow everything after its first value?
+    pub fn is_trailing(&self) -> bool {
+        self.trailing
+    }
+    /// The longer help text shown by `--help`, if one was set.
+    pub fn long_help(&self) -> Option<&str> {
+        self.long_help.as_deref()
+    }
+    /// The custom help section this argument is listed under.
+    pub fn help_heading(&self) -> Option<&str> {
+        self.heading.as_deref()
+    }
+    /// The character each value is split on, if any.
+    pub fn delimiter(&self) -> Option<char> {
+        self.value.as_ref().and_then(|v| v.delimiter)
+    }
+    /// The constraints declared on this argument towards other arguments.
+    pub fn relations(&self) -> &[Relation] {
+        &self.relations
     }
     /// The default value as shown in help.
     pub fn default_text(&self) -> Option<&str> {
@@ -241,11 +329,23 @@ impl ArgDef {
         }
         out.extend(self.short_aliases.iter().map(|c| format!("-{c}")));
         out.extend(self.aliases.iter().map(|l| format!("--{l}")));
+        out.extend(self.visible_aliases.iter().map(|l| format!("--{l}")));
         out
     }
 
     pub(crate) fn matches_long(&self, name: &str) -> bool {
-        self.long.as_deref() == Some(name) || self.aliases.iter().any(|a| a == name)
+        self.long.as_deref() == Some(name)
+            || self.aliases.iter().any(|a| a == name)
+            || self.visible_aliases.iter().any(|a| a == name)
+    }
+
+    /// Every long name, canonical first.
+    pub(crate) fn long_names(&self) -> impl Iterator<Item = &str> {
+        self.long
+            .iter()
+            .chain(&self.aliases)
+            .chain(&self.visible_aliases)
+            .map(String::as_str)
     }
 
     pub(crate) fn matches_short(&self, c: char) -> bool {
@@ -402,6 +502,78 @@ impl<T> Arg<T> {
     /// Add an alternative long name. Aliases are accepted but not shown in help.
     pub fn alias(mut self, name: impl Into<String>) -> Self {
         self.def.aliases.push(name.into());
+        self
+    }
+
+    /// Add an alternative long name that is listed in help as
+    /// `[aliases: name]`.
+    pub fn visible_alias(mut self, name: impl Into<String>) -> Self {
+        self.def.visible_aliases.push(name.into());
+        self
+    }
+
+    /// A longer help text shown by `--help`; `-h` keeps showing
+    /// [`help`](Arg::help).
+    pub fn long_help(mut self, text: impl Into<String>) -> Self {
+        self.def.long_help = Some(text.into());
+        self
+    }
+
+    /// List the argument under its own section title in help instead of
+    /// `Options` or `Arguments`. Arguments sharing a title are grouped.
+    pub fn help_heading(mut self, title: impl Into<String>) -> Self {
+        self.def.heading = Some(title.into());
+        self
+    }
+
+    /// Allow the argument to be given more than once, the last value
+    /// winning. By default a single-value argument or a flag given twice
+    /// is an error (see [`Command::args_override_self`](crate::Command::args_override_self)).
+    pub fn last_wins(mut self) -> Self {
+        self.def.last_wins = true;
+        self
+    }
+
+    /// When this argument is present, `other` must be too.
+    pub fn requires<U>(mut self, other: &Arg<U>) -> Self {
+        self.def
+            .relations
+            .push(Relation::Requires(other.id().to_owned()));
+        self
+    }
+
+    /// This argument and `other` cannot be given together.
+    pub fn conflicts_with<U>(mut self, other: &Arg<U>) -> Self {
+        self.def
+            .relations
+            .push(Relation::ConflictsWith(other.id().to_owned()));
+        self
+    }
+
+    /// This argument is required unless `other` is present. Several calls
+    /// accumulate: any one of the named arguments lifts the requirement.
+    pub fn required_unless<U>(mut self, other: &Arg<U>) -> Self {
+        self.def
+            .relations
+            .push(Relation::RequiredUnless(other.id().to_owned()));
+        self
+    }
+
+    /// This argument is required when `other` was given the raw value
+    /// `value` on the command line.
+    pub fn required_if_eq<U>(mut self, other: &Arg<U>, value: impl Into<String>) -> Self {
+        self.def
+            .relations
+            .push(Relation::RequiredIfEq(other.id().to_owned(), value.into()));
+        self
+    }
+
+    /// When this argument was given the raw value `value`, `other` must be
+    /// present.
+    pub fn requires_if<U>(mut self, value: impl Into<String>, other: &Arg<U>) -> Self {
+        self.def
+            .relations
+            .push(Relation::RequiresIf(value.into(), other.id().to_owned()));
         self
     }
 
@@ -562,8 +734,22 @@ impl Arg<bool> {
             #[cfg(feature = "env")]
             env: None,
             completer: None,
+            delimiter: None,
         });
         self.retype(ex_option::<U>)
+    }
+
+    /// Make the argument take one of the values of a [`ValueEnum`]; the
+    /// accepted names are listed in help and checked before parsing, and
+    /// both come from the same definition, so they cannot drift apart.
+    pub fn value_enum<U: ValueEnum>(self) -> Arg<Option<U>> {
+        self.value_with(|s| U::from_name(s).ok_or("unknown value"))
+            .possible(U::names())
+    }
+
+    /// A positional argument taking one of the values of a [`ValueEnum`].
+    pub fn positional_enum<U: ValueEnum>(name: impl Into<String>) -> Arg<Option<U>> {
+        Arg::positional_with(name, |s| U::from_name(s).ok_or("unknown value")).possible(U::names())
     }
 }
 
@@ -669,4 +855,112 @@ impl<U: Any + Clone + Send + Sync> Arg<Vec<U>> {
         self.def.required = true;
         self
     }
+
+    /// Let each occurrence take every following argument that does not
+    /// look like an option: `--exec cmd arg arg`. An attached value
+    /// (`--exec=cmd`) limits that occurrence to one value.
+    pub fn greedy(mut self) -> Arg<Vec<U>> {
+        self.def.greedy = true;
+        self
+    }
+
+    /// Split every value on `c`: `-f a,b,c` yields three values. Splitting
+    /// happens before parsing, so each piece must be valid on its own.
+    pub fn delimiter(mut self, c: char) -> Arg<Vec<U>> {
+        if let Some(v) = &mut self.def.value {
+            v.delimiter = Some(c);
+        }
+        self
+    }
+
+    /// For a repeated positional: once its first value is seen, every
+    /// remaining argument is a value for it, options included
+    /// (`run prog -x --y`). Equivalent to an implicit `--`.
+    pub fn trailing(mut self) -> Arg<Vec<U>> {
+        self.def.trailing = true;
+        self
+    }
+}
+
+/// A fixed set of named values, for options that accept one of a list.
+///
+/// Implement it with [`value_enum!`](crate::value_enum) (no proc-macro) or
+/// `#[derive(ValueEnum)]` (feature `derive`), then use
+/// [`Arg::value_enum`] or the `value_enum` field setting. The names shown
+/// in help and the names accepted come from the same list.
+pub trait ValueEnum: Clone + Send + Sync + 'static {
+    /// Every value, in the order shown in help.
+    const VALUES: &'static [Self];
+
+    /// The name this value is written as on the command line.
+    fn name(&self) -> &'static str;
+
+    /// The value spelled `name`, if any.
+    fn from_name(name: &str) -> Option<Self> {
+        Self::VALUES.iter().find(|v| v.name() == name).cloned()
+    }
+
+    /// All names, in order.
+    fn names() -> Vec<String> {
+        Self::VALUES.iter().map(|v| v.name().to_owned()).collect()
+    }
+}
+
+/// Define an enum that implements [`ValueEnum`], `FromStr` and `Display`
+/// from one list of `Variant = "name"` pairs.
+///
+/// ```
+/// hasami::value_enum! {
+///     /// How much to say
+///     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///     pub enum Level { Quiet = "quiet", Normal = "normal", Loud = "loud" }
+/// }
+///
+/// use hasami::{Arg, Command, ValueEnum};
+/// let level = Arg::new("level").value_enum::<Level>().default(Level::Normal);
+/// let cmd = Command::new("x").arg(&level);
+/// assert_eq!(cmd.try_parse_args(["--level", "loud"]).unwrap().get(&level), Level::Loud);
+/// assert!(cmd.try_parse_args(["--level", "shout"]).is_err());
+/// assert_eq!(Level::names(), ["quiet", "normal", "loud"]);
+/// ```
+///
+/// The enum must derive or implement `Clone`.
+#[macro_export]
+macro_rules! value_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $Name:ident {
+            $( $(#[$vmeta:meta])* $Variant:ident = $name:literal ),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        $vis enum $Name {
+            $( $(#[$vmeta])* $Variant ),+
+        }
+
+        impl $crate::ValueEnum for $Name {
+            const VALUES: &'static [$Name] = &[ $( $Name::$Variant ),+ ];
+
+            fn name(&self) -> &'static str {
+                match self {
+                    $( $Name::$Variant => $name ),+
+                }
+            }
+        }
+
+        impl ::std::str::FromStr for $Name {
+            type Err = String;
+
+            fn from_str(s: &str) -> Result<$Name, String> {
+                <$Name as $crate::ValueEnum>::from_name(s)
+                    .ok_or_else(|| $crate::__macro::unknown_enum_value(s, &<$Name as $crate::ValueEnum>::names()))
+            }
+        }
+
+        impl ::std::fmt::Display for $Name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                f.write_str(<$Name as $crate::ValueEnum>::name(self))
+            }
+        }
+    };
 }

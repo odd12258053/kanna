@@ -26,12 +26,12 @@ if [ ${#variants[@]} -eq 0 ]; then
   fi
 fi
 
-# Budgets in KiB (SPEC.md §5): core ≤ 20, help ≤ 60. "full" must stay under
+# Budgets in KiB (SPEC.md §5, help raised by ADR-0018): core ≤ 20, help ≤ 75. "full" must stay under
 # half of clap; that ratio is checked by --compare --check.
 budget() {
   case "$1" in
     core) echo 20 ;;
-    "decl:help") echo 60 ;;
+    "decl:help") echo 75 ;;
     *) echo "" ;;
   esac
 }

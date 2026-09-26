@@ -5,7 +5,7 @@ use std::ffi::{OsStr, OsString};
 
 use hasami_core::{Arg as Tok, Parser};
 
-use crate::arg::{ArgDef, ParseFailure, ValueDef};
+use crate::arg::{ArgDef, ParseFailure, Relation, ValueDef};
 use crate::command::{CmdRef, Command};
 use crate::error::{Error, ErrorKind};
 use crate::matches::{Matches, Slot, Source, Stored};
@@ -42,6 +42,42 @@ impl<'a> Frame<'a> {
             self.path.clone()
         }
     }
+
+    /// The help text of this level, or the usage line without the `help`
+    /// feature.
+    fn help(&self, long: bool) -> String {
+        #[cfg(feature = "help")]
+        {
+            crate::help::render_help(&self.cmd, &self.path, long)
+        }
+        #[cfg(not(feature = "help"))]
+        {
+            let _ = long;
+            self.usage()
+        }
+    }
+
+    /// Resolve a subcommand name, exactly or (when enabled) by an
+    /// unambiguous prefix.
+    fn find_subcommand(&self, name: &str) -> Option<usize> {
+        let subs = &self.cmd.subcommands;
+        if let Some(i) = subs.iter().position(|s| s.matches_name(name)) {
+            return Some(i);
+        }
+        if !self.cmd.infer_subcommands || name.is_empty() {
+            return None;
+        }
+        let mut hit = None;
+        for (i, s) in subs.iter().enumerate() {
+            if s.names().any(|n| n.starts_with(name)) {
+                if hit.is_some() {
+                    return None;
+                }
+                hit = Some(i);
+            }
+        }
+        hit
+    }
 }
 
 enum Name {
@@ -74,6 +110,11 @@ fn msg(parts: &[&str]) -> String {
 }
 
 pub(crate) fn parse(root: &Command, p: &mut Parser) -> Result<Matches, Error> {
+    if cfg!(debug_assertions) {
+        if let Err(problems) = root.validate() {
+            panic!("invalid command definition:\n  {}", problems.join("\n  "));
+        }
+    }
     let mut frames = vec![Frame::new(
         CmdRef::Borrowed(root),
         root.name.clone(),
@@ -84,7 +125,7 @@ pub(crate) fn parse(root: &Command, p: &mut Parser) -> Result<Matches, Error> {
         Err(mut e) => {
             if let Some(top) = frames.last() {
                 e.set_usage_if_missing(|| top.usage());
-                e = e.with_help_context(&top.cmd, &top.path);
+                e = e.with_help_context(&top.cmd, &top.path, false);
             }
             Err(e)
         }
@@ -99,7 +140,7 @@ fn run(frames: &mut Vec<Frame<'_>>, p: &mut Parser) -> Result<(), Error> {
             Ok(Some(Tok::Short(c))) => Name::Short(c),
             Ok(Some(Tok::Long(l))) => Name::Long(l.to_owned()),
             Ok(Some(Tok::Value(v))) => {
-                value(frames, v)?;
+                value(frames, p, v)?;
                 continue;
             }
             Ok(None) => break,
@@ -147,25 +188,58 @@ fn find_by_spelling<'f>(frames: &'f [Frame<'_>], spelling: &str) -> Option<&'f A
     lookup(frames, &name).map(|(fi, ai)| &frames[fi].cmd.args[ai])
 }
 
-/// Locate an option: the innermost command first, then global options of
-/// the enclosing commands.
-fn lookup(frames: &[Frame<'_>], name: &Name) -> Option<(usize, usize)> {
+/// Visit every option visible from the innermost command: its own, then
+/// the global ones of the enclosing commands. Returns the first hit.
+fn find_option(
+    frames: &[Frame<'_>],
+    mut pred: impl FnMut(&ArgDef) -> bool,
+) -> Option<(usize, usize)> {
     let last = frames.len().checked_sub(1)?;
     for fi in (0..=last).rev() {
         let global_only = fi != last;
-        let hit = frames[fi].cmd.args.iter().position(|a| {
-            !a.positional
-                && (!global_only || a.global)
-                && match name {
-                    Name::Short(c) => a.matches_short(*c),
-                    Name::Long(l) => a.matches_long(l),
-                }
-        });
+        let hit = frames[fi]
+            .cmd
+            .args
+            .iter()
+            .position(|a| !a.positional && (!global_only || a.global) && pred(a));
         if let Some(ai) = hit {
             return Some((fi, ai));
         }
     }
     None
+}
+
+/// Locate an option exactly, or by an unambiguous prefix of a long name
+/// when the innermost command allows it.
+fn lookup(frames: &[Frame<'_>], name: &Name) -> Option<(usize, usize)> {
+    let exact = find_option(frames, |a| match name {
+        Name::Short(c) => a.matches_short(*c),
+        Name::Long(l) => a.matches_long(l),
+    });
+    if exact.is_some() {
+        return exact;
+    }
+    let Name::Long(prefix) = name else {
+        return None;
+    };
+    if prefix.is_empty() || !frames.last()?.cmd.infer_long_args {
+        return None;
+    }
+    let mut hits = 0;
+    let mut found = None;
+    let last = frames.len() - 1;
+    for (fi, frame) in frames.iter().enumerate() {
+        for (ai, a) in frame.cmd.args.iter().enumerate() {
+            if !a.positional
+                && (fi == last || a.global)
+                && a.long_names().any(|l| l.starts_with(prefix.as_str()))
+            {
+                hits += 1;
+                found = Some((fi, ai));
+            }
+        }
+    }
+    if hits == 1 { found } else { None }
 }
 
 fn option(frames: &mut [Frame<'_>], p: &mut Parser, name: Name) -> Result<(), Error> {
@@ -175,6 +249,21 @@ fn option(frames: &mut [Frame<'_>], p: &mut Parser, name: Name) -> Result<(), Er
     let frame = &mut frames[fi];
     let def = &frame.cmd.args[ai];
     let slot = &mut frame.matches.slots[ai];
+    if slot.source == Some(Source::CommandLine)
+        && !def.many
+        && !def.count
+        && !def.last_wins
+        && !frame.cmd.args_override_self
+    {
+        return Err(Error::new(
+            ErrorKind::Repeated,
+            msg(&[
+                "the argument '",
+                &def.display_name(),
+                "' cannot be used multiple times",
+            ]),
+        ));
+    }
     match &def.value {
         None => {
             slot.values.push(Stored {
@@ -185,6 +274,13 @@ fn option(frames: &mut [Frame<'_>], p: &mut Parser, name: Name) -> Result<(), Er
             Ok(())
         }
         Some(vd) => {
+            if def.greedy {
+                let values: Vec<OsString> = p.values().map_err(|_| missing_value(def))?.collect();
+                for raw in values {
+                    store(def, vd, raw, slot, Source::CommandLine)?;
+                }
+                return Ok(());
+            }
             let raw = if let Some((make, text)) = &vd.default_missing {
                 match p.optional_value()? {
                     Some(v) => v,
@@ -220,18 +316,20 @@ fn unknown_option(frames: &[Frame<'_>], name: &Name) -> Error {
     let display = name.display();
     #[cfg(feature = "help")]
     if let Some(top) = frames.last() {
-        let is_help =
-            matches!(name, Name::Long(l) if l == "help") || matches!(name, Name::Short('h'));
-        if top.cmd.has_help_flag() && is_help {
-            return Error::new(
-                ErrorKind::DisplayHelp,
-                crate::help::render_help(&top.cmd, &top.path),
+        let is_long_help = matches!(name, Name::Long(l) if l == "help");
+        if top.cmd.has_help_flag() && (is_long_help || matches!(name, Name::Short('h'))) {
+            return Error::new(ErrorKind::DisplayHelp, top.help(is_long_help)).with_help_context(
+                &top.cmd,
+                &top.path,
+                is_long_help,
             );
         }
-        let is_version =
-            matches!(name, Name::Long(l) if l == "version") || matches!(name, Name::Short('V'));
-        if top.cmd.has_version_flag() && is_version {
-            let version = top.cmd.version.as_deref().unwrap_or_default();
+        let is_long_version = matches!(name, Name::Long(l) if l == "version");
+        if top.cmd.has_version_flag() && (is_long_version || matches!(name, Name::Short('V'))) {
+            let version = match (&top.cmd.long_version, is_long_version) {
+                (Some(long), true) => long.as_str(),
+                _ => top.cmd.version.as_deref().unwrap_or_default(),
+            };
             return Error::new(
                 ErrorKind::DisplayVersion,
                 msg(&[&top.cmd.name, " ", version]),
@@ -290,16 +388,43 @@ fn option_spellings(frames: &[Frame<'_>]) -> Vec<String> {
     out
 }
 
-fn value(frames: &mut Vec<Frame<'_>>, v: OsString) -> Result<(), Error> {
+/// Enter subcommand `i` of the innermost frame.
+fn push_subcommand(frames: &mut Vec<Frame<'_>>, i: usize) {
+    let Some(top) = frames.last() else { return };
+    let sub = &top.cmd.subcommands[i];
+    let path = msg(&[&top.path, " ", &sub.name]);
+    let name = sub.name.clone();
+    let cmd = sub.resolve();
+    frames.push(Frame::new(cmd, name, path));
+}
+
+fn value(frames: &mut Vec<Frame<'_>>, p: &mut Parser, v: OsString) -> Result<(), Error> {
     let Some(top) = frames.last_mut() else {
         return Ok(());
     };
     if !top.cmd.subcommands.is_empty() {
-        if let Some(sub) = v.to_str().and_then(|n| top.cmd.find_subcommand(n)) {
-            let path = msg(&[&top.path, " ", &sub.name]);
-            let name = sub.name.clone();
-            let cmd = sub.resolve();
-            frames.push(Frame::new(cmd, name, path));
+        let name = v.to_str();
+        if let Some(i) = name.and_then(|n| top.find_subcommand(n)) {
+            push_subcommand(frames, i);
+            return Ok(());
+        }
+        // `app help sub sub`: descend as far as the names resolve, then
+        // show that level's help.
+        if name == Some("help") && top.cmd.has_help_flag() {
+            let words: Vec<OsString> = p.raw_args()?.collect();
+            for w in words {
+                let Some(i) = w.to_str().and_then(|n| frames.last()?.find_subcommand(n)) else {
+                    break;
+                };
+                push_subcommand(frames, i);
+            }
+            let top = &frames[frames.len() - 1];
+            return Err(Error::new(ErrorKind::DisplayHelp, top.help(true))
+                .with_help_context(&top.cmd, &top.path, true));
+        }
+        if top.cmd.external_subcommands {
+            let rest: Vec<OsString> = p.raw_args()?.collect();
+            top.matches.external = Some((v, rest));
             return Ok(());
         }
     }
@@ -317,7 +442,15 @@ fn value(frames: &mut Vec<Frame<'_>>, v: OsString) -> Result<(), Error> {
     let Some(vd) = &def.value else {
         return Ok(());
     };
-    store(def, vd, v, &mut top.matches.slots[ai], Source::CommandLine)
+    let slot = &mut top.matches.slots[ai];
+    store(def, vd, v, slot, Source::CommandLine)?;
+    if def.trailing {
+        let rest: Vec<OsString> = p.raw_args()?.collect();
+        for raw in rest {
+            store(def, vd, raw, slot, Source::CommandLine)?;
+        }
+    }
+    Ok(())
 }
 
 fn unexpected_value(frames: &[Frame<'_>], v: &OsStr) -> Error {
@@ -379,8 +512,26 @@ fn unexpected_value(frames: &[Frame<'_>], v: &OsStr) -> Error {
     }
 }
 
-#[inline(never)]
+/// Store one occurrence, splitting it on the delimiter first if the
+/// argument has one.
 fn store(
+    def: &ArgDef,
+    vd: &ValueDef,
+    raw: OsString,
+    slot: &mut Slot,
+    source: Source,
+) -> Result<(), Error> {
+    if let (Some(c), Some(s)) = (vd.delimiter, raw.to_str()) {
+        for piece in s.split(c) {
+            store_one(def, vd, OsString::from(piece), slot, source)?;
+        }
+        return Ok(());
+    }
+    store_one(def, vd, raw, slot, source)
+}
+
+#[inline(never)]
+fn store_one(
     def: &ArgDef,
     vd: &ValueDef,
     raw: OsString,
@@ -448,14 +599,56 @@ fn invalid_value(def: &ArgDef, raw: &OsStr, failure: ParseFailure) -> Error {
 
 fn finish(frames: &mut [Frame<'_>]) -> Result<(), Error> {
     let last = frames.len().saturating_sub(1);
+    if let [root] = frames {
+        if root.cmd.arg_required_else_help
+            && root.matches.ids().next().is_none()
+            && root.matches.external.is_none()
+        {
+            let e = Error::new(ErrorKind::HelpOnMissingArgs, root.help(false));
+            return Err(e.with_help_context(&root.cmd, &root.path, false));
+        }
+    }
     for (fi, frame) in frames.iter_mut().enumerate() {
         if let Err(e) = finish_frame(frame, fi == last) {
             let mut e = e;
             e.set_usage_if_missing(|| frame.usage());
-            return Err(e.with_help_context(&frame.cmd, &frame.path));
+            return Err(e.with_help_context(&frame.cmd, &frame.path, false));
         }
     }
     Ok(())
+}
+
+/// The display name of an id, for messages.
+fn name_of(cmd: &Command, id: &str) -> String {
+    cmd.find_arg(id)
+        .map(ArgDef::display_name)
+        .unwrap_or_else(|| id.to_owned())
+}
+
+fn requires_error(cmd: &Command, a: &str, b: &str) -> Error {
+    Error::new(
+        ErrorKind::MissingRequired,
+        msg(&[
+            "the argument '",
+            &name_of(cmd, a),
+            "' requires '",
+            &name_of(cmd, b),
+            "', which was not provided",
+        ]),
+    )
+}
+
+fn conflict_error(cmd: &Command, a: &str, b: &str) -> Error {
+    Error::new(
+        ErrorKind::Conflict,
+        msg(&[
+            "the argument '",
+            &name_of(cmd, a),
+            "' cannot be used with '",
+            &name_of(cmd, b),
+            "'",
+        ]),
+    )
 }
 
 fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
@@ -487,10 +680,34 @@ fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
         }
     }
 
-    // Required arguments, reported together.
+    // Was `id` given explicitly with the raw value `v`?
+    let given_eq = |id: &str, v: &str| {
+        matches.contains_id(id) && matches.raw_id(id).last().is_some_and(|raw| *raw == v)
+    };
+
+    // Required arguments, including conditional ones, reported together.
     let mut text = String::new();
     for (ai, a) in cmd.args.iter().enumerate() {
-        if a.required && matches.slots[ai].values.is_empty() {
+        if !matches.slots[ai].values.is_empty() {
+            continue;
+        }
+        // `required_unless` overrides `required`; any one present other
+        // argument lifts the requirement.
+        let mut needed = a.required;
+        for r in &a.relations {
+            match r {
+                Relation::RequiredUnless(id) => {
+                    if matches.contains_id(id) {
+                        needed = false;
+                        break;
+                    }
+                    needed = true;
+                }
+                Relation::RequiredIfEq(id, v) if given_eq(id, v) => needed = true,
+                _ => {}
+            }
+        }
+        if needed {
             text.push_str("\n  ");
             text.push_str(&a.display_name());
         }
@@ -500,33 +717,43 @@ fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
         return Err(Error::new(ErrorKind::MissingRequired, text));
     }
 
+    // Per-argument relations.
+    for a in &cmd.args {
+        if !matches.contains_id(&a.id) {
+            continue;
+        }
+        for r in &a.relations {
+            let other = r.other();
+            let broken = match r {
+                Relation::ConflictsWith(_) => {
+                    if matches.contains_id(other) {
+                        return Err(conflict_error(cmd, &a.id, other));
+                    }
+                    false
+                }
+                Relation::Requires(_) => !matches.contains_id(other),
+                Relation::RequiresIf(v, _) => given_eq(&a.id, v) && !matches.contains_id(other),
+                _ => false,
+            };
+            if broken {
+                return Err(requires_error(cmd, &a.id, other));
+            }
+        }
+    }
+
     // Groups.
     for g in &cmd.groups {
-        let present: Vec<&ArgDef> = g
+        let present: Vec<&str> = g
             .members
             .iter()
             .filter(|id| matches.contains_id(id))
-            .filter_map(|id| cmd.find_arg(id))
+            .map(String::as_str)
             .collect();
         if let (true, [a, b, ..]) = (g.exclusive, present.as_slice()) {
-            return Err(Error::new(
-                ErrorKind::Conflict,
-                msg(&[
-                    "the argument '",
-                    &a.display_name(),
-                    "' cannot be used with '",
-                    &b.display_name(),
-                    "'",
-                ]),
-            ));
+            return Err(conflict_error(cmd, a, b));
         }
         if g.required && present.is_empty() {
-            let names: Vec<String> = g
-                .members
-                .iter()
-                .filter_map(|id| cmd.find_arg(id))
-                .map(|a| a.display_name())
-                .collect();
+            let names: Vec<String> = g.members.iter().map(|id| name_of(cmd, id)).collect();
             return Err(Error::new(
                 ErrorKind::MissingRequired,
                 msg(&[
@@ -537,28 +764,18 @@ fn finish_frame(frame: &mut Frame<'_>, is_leaf: bool) -> Result<(), Error> {
         }
     }
 
-    // Requires.
+    // Command-level requires.
     for (a, b) in &cmd.requires {
         if matches.contains_id(a) && !matches.contains_id(b) {
-            let name = |id: &str| {
-                cmd.find_arg(id)
-                    .map(ArgDef::display_name)
-                    .unwrap_or_else(|| id.to_owned())
-            };
-            return Err(Error::new(
-                ErrorKind::MissingRequired,
-                msg(&[
-                    "the argument '",
-                    &name(a),
-                    "' requires '",
-                    &name(b),
-                    "', which was not provided",
-                ]),
-            ));
+            return Err(requires_error(cmd, a, b));
         }
     }
 
-    if is_leaf && cmd.subcommand_required && !cmd.subcommands.is_empty() {
+    if is_leaf
+        && cmd.subcommand_required
+        && !cmd.subcommands.is_empty()
+        && matches.external.is_none()
+    {
         let names: Vec<&str> = cmd
             .subcommands
             .iter()

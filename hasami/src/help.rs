@@ -80,15 +80,37 @@ fn positional_usage(a: &ArgDef) -> String {
     s
 }
 
-/// The full help text as printed by `--help`.
-pub(crate) fn render_help(cmd: &Command, path: &str) -> String {
-    render_help_styled(cmd, path, &Styles::PLAIN)
+/// The full help text: the `--help` form when `long`, the `-h` form
+/// otherwise. They differ only where `long_about` or `long_help` are set.
+pub(crate) fn render_help(cmd: &Command, path: &str, long: bool) -> String {
+    render_help_styled(cmd, path, &Styles::PLAIN, long)
 }
 
-pub(crate) fn render_help_styled(cmd: &Command, path: &str, st: &Styles) -> String {
+/// The width help is wrapped to: the command's setting, else `COLUMNS`,
+/// else 100. Zero means no wrapping.
+fn width_of(cmd: &Command) -> usize {
+    cmd.term_width.unwrap_or_else(|| {
+        std::env::var("COLUMNS")
+            .ok()
+            .and_then(|c| c.parse().ok())
+            .unwrap_or(100)
+    })
+}
+
+pub(crate) fn render_help_styled(cmd: &Command, path: &str, st: &Styles, long: bool) -> String {
+    let width = width_of(cmd);
     let mut out = String::new();
-    if let Some(about) = cmd.long_about.as_deref().or(cmd.about.as_deref()) {
-        out.push_str(about);
+    if let Some(before) = &cmd.before_help {
+        out.push_str(&wrap(before, width));
+        out.push_str("\n\n");
+    }
+    let about = if long {
+        cmd.long_about.as_deref().or(cmd.about.as_deref())
+    } else {
+        cmd.about.as_deref()
+    };
+    if let Some(about) = about {
+        out.push_str(&wrap(about, width));
         out.push_str("\n\n");
     }
     out.push_str(st.header());
@@ -101,48 +123,63 @@ pub(crate) fn render_help_styled(cmd: &Command, path: &str, st: &Styles) -> Stri
     let mut subs = Vec::new();
     for s in &cmd.subcommands {
         if !s.hidden {
+            let mut right = s.about.clone().unwrap_or_default();
+            aliases_note(&mut right, &s.visible_aliases);
             subs.push(Row {
                 literal: s.name.clone(),
                 placeholder: String::new(),
-                right: s.about.clone().unwrap_or_default(),
+                right,
             });
         }
     }
-    let mut positionals = Vec::new();
-    let mut options = Vec::new();
+    // Sections in order: Arguments, Options, then custom headings as they
+    // first appear.
+    let mut sections: Vec<(&str, Vec<Row>)> =
+        vec![("Arguments", Vec::new()), ("Options", Vec::new())];
     for a in &cmd.args {
         if a.hidden {
             continue;
         }
-        if a.positional {
-            positionals.push(Row {
+        let row = if a.positional {
+            Row {
                 literal: String::new(),
                 placeholder: positional_usage(a),
-                right: describe(a),
-            });
+                right: describe(a, long),
+            }
         } else {
             let (literal, placeholder) = option_left(a);
-            options.push(Row {
+            Row {
                 literal,
                 placeholder,
-                right: describe(a),
-            });
+                right: describe(a, long),
+            }
+        };
+        let title =
+            a.heading
+                .as_deref()
+                .unwrap_or(if a.positional { "Arguments" } else { "Options" });
+        match sections.iter_mut().find(|(t, _)| *t == title) {
+            Some((_, rows)) => rows.push(row),
+            None => sections.push((title, vec![row])),
         }
     }
     if cmd.has_help_flag() {
-        options.push(Row::literal("-h, --help", "Print help"));
+        sections[1].1.push(Row::literal("-h, --help", "Print help"));
     }
     if cmd.has_version_flag() {
-        options.push(Row::literal("-V, --version", "Print version"));
+        sections[1]
+            .1
+            .push(Row::literal("-V, --version", "Print version"));
     }
 
-    section(&mut out, "Commands", &subs, st);
-    section(&mut out, "Arguments", &positionals, st);
-    section(&mut out, "Options", &options, st);
+    section(&mut out, "Commands", &subs, st, width);
+    for (title, rows) in &sections {
+        section(&mut out, title, rows, st, width);
+    }
 
     if let Some(after) = &cmd.after_help {
         out.push('\n');
-        out.push_str(after);
+        out.push_str(&wrap(after, width));
         out.push('\n');
     }
     out
@@ -208,9 +245,28 @@ fn option_left(a: &ArgDef) -> (String, String) {
     (s, v)
 }
 
-/// Help text plus `[default: ..]`, `[possible values: ..]`, `[env: ..]`.
-fn describe(a: &ArgDef) -> String {
-    let mut s = a.help.clone().unwrap_or_default();
+/// Append `[aliases: a, b]` to a help text.
+fn aliases_note(s: &mut String, aliases: &[String]) {
+    if aliases.is_empty() {
+        return;
+    }
+    if !s.is_empty() {
+        s.push(' ');
+    }
+    s.push_str("[aliases: ");
+    s.push_str(&aliases.join(", "));
+    s.push(']');
+}
+
+/// Help text plus `[default: ..]`, `[possible values: ..]`, `[env: ..]`,
+/// `[aliases: ..]`.
+fn describe(a: &ArgDef, long: bool) -> String {
+    let base = if long {
+        a.long_help.as_deref().or(a.help.as_deref())
+    } else {
+        a.help.as_deref()
+    };
+    let mut s = base.unwrap_or_default().to_owned();
     let mut extra = |text: String| {
         if !s.is_empty() {
             s.push(' ');
@@ -229,13 +285,14 @@ fn describe(a: &ArgDef) -> String {
             extra(["[env: ", var, "]"].concat());
         }
     }
+    aliases_note(&mut s, &a.visible_aliases);
     s
 }
 
 const INDENT: usize = 2;
 const MAX_LEFT: usize = 36;
 
-fn section(out: &mut String, title: &str, rows: &[Row], st: &Styles) {
+fn section(out: &mut String, title: &str, rows: &[Row], st: &Styles, width: usize) {
     if rows.is_empty() {
         return;
     }
@@ -253,6 +310,12 @@ fn section(out: &mut String, title: &str, rows: &[Row], st: &Styles) {
         }
     }
     let col = INDENT + widest + 2;
+    // Never wrap the right column narrower than this, whatever the width.
+    let right_width = if width == 0 {
+        0
+    } else {
+        width.saturating_sub(col).max(20)
+    };
     for row in rows {
         pad(out, INDENT);
         out.push_str(st.literal());
@@ -265,13 +328,14 @@ fn section(out: &mut String, title: &str, rows: &[Row], st: &Styles) {
             out.push('\n');
             continue;
         }
-        let width = row.width();
-        let mut lines = row.right.lines();
-        if width > MAX_LEFT {
+        let left = row.width();
+        let text = wrap(&row.right, right_width);
+        let mut lines = text.lines();
+        if left > MAX_LEFT {
             out.push('\n');
             pad(out, col);
         } else {
-            pad(out, col - INDENT - width);
+            pad(out, col - INDENT - left);
         }
         if let Some(first) = lines.next() {
             out.push_str(first);
@@ -289,4 +353,42 @@ fn pad(out: &mut String, n: usize) {
     for _ in 0..n {
         out.push(' ');
     }
+}
+
+/// Word-wrap `text` to `width` columns, keeping explicit line breaks and
+/// runs of spaces (indentation). A width of zero returns the text unchanged.
+fn wrap(text: &str, width: usize) -> String {
+    if width == 0 {
+        return text.to_owned();
+    }
+    let mut out = String::with_capacity(text.len() + 8);
+    for (i, line) in text.lines().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        let mut used = 0;
+        let mut need_sep = false;
+        for word in line.split(' ') {
+            if word.is_empty() {
+                out.push(' ');
+                used += 1;
+                need_sep = false;
+                continue;
+            }
+            let w = word.chars().count();
+            if need_sep {
+                if used + 1 + w > width {
+                    out.push('\n');
+                    used = 0;
+                } else {
+                    out.push(' ');
+                    used += 1;
+                }
+            }
+            out.push_str(word);
+            used += w;
+            need_sep = true;
+        }
+    }
+    out
 }

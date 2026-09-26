@@ -366,3 +366,146 @@ fn from_matches_and_parse_from() {
     assert_eq!(a.name, "z");
     assert!(Args::try_parse_from(["greet"]).is_err());
 }
+
+// ------------------------------------------------- settings added for clap parity
+
+hasami::value_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Level { Low = "low", High = "high" }
+}
+
+hasami::cli! {
+    /// Parity settings
+    #[derive(Debug)]
+    #[name = "parity", version = "1", long_version = "1 (full)", before_help = "Banner"]
+    #[infer_long_args, infer_subcommands, term_width = 80]
+    struct Parity {
+        /// Level
+        #[value_enum, default = Level::Low, help_heading = "Tuning"] level: Level,
+        /// Run
+        #[short, greedy] exec: Vec<String>,
+        /// Features
+        #[short, delimiter = ','] features: Vec<String>,
+        /// Force
+        #[requires = "output", conflicts_with = "dry_run", visible_alias = "yes"] force: bool,
+        /// Output
+        #[long_help = "Where the result goes, at length"] output: Option<String>,
+        /// Dry run
+        dry_run: bool,
+        /// Key
+        #[required_if_eq = ["level", "high"]] key: Option<String>,
+        /// Repeatable
+        #[last_wins] name: Option<String>,
+        #[subcommand] cmd: Option<ParityCmd>,
+    }
+
+    #[derive(Debug)]
+    enum ParityCmd {
+        /// Install
+        #[visible_alias = "i"]
+        Install,
+        /// Run everything after it
+        Run(RunArgs),
+    }
+
+    #[derive(Debug)]
+    struct RunArgs {
+        /// Program and arguments
+        #[positional, trailing] args: Vec<String>,
+    }
+}
+
+#[test]
+fn parity_settings_through_the_macro() {
+    let p = Parity::try_parse_args([
+        "--level", "high", "--key", "k", "-e", "echo", "a", "-f", "x,y", "--name", "n1", "--name",
+        "n2", "--forc", "--output", "o",
+    ])
+    .unwrap();
+    assert_eq!(p.level, Level::High);
+    assert_eq!(p.key.as_deref(), Some("k"));
+    assert_eq!(p.exec, ["echo", "a"]);
+    assert_eq!(p.features, ["x", "y"]);
+    assert_eq!(p.name.as_deref(), Some("n2"));
+    assert!(p.force);
+
+    let e = Parity::try_parse_args(["--level", "high"]).unwrap_err();
+    assert!(e.message().contains("--key <KEY>"), "{}", e.message());
+    let e = Parity::try_parse_args(["--yes"]).unwrap_err();
+    assert!(
+        e.message().contains("requires '--output <OUTPUT>'"),
+        "{}",
+        e.message()
+    );
+    let e = Parity::try_parse_args(["--force", "--output", "o", "--dry-run"]).unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::Conflict);
+    let e = Parity::try_parse_args(["--output", "a", "--output", "b"]).unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::Repeated);
+
+    let p = Parity::try_parse_args(["i"]).unwrap();
+    assert!(matches!(p.cmd, Some(ParityCmd::Install)));
+    let p = Parity::try_parse_args(["run", "prog", "-x", "--y"]).unwrap();
+    match p.cmd {
+        Some(ParityCmd::Run(r)) => assert_eq!(r.args, ["prog", "-x", "--y"]),
+        other => panic!("{other:?}"),
+    }
+
+    let cmd = Parity::command();
+    let short = cmd.render_short_help();
+    let long = cmd.render_help();
+    assert!(long.starts_with("Banner\n\nParity settings\n\nUsage: parity"));
+    assert!(
+        short.contains("Output\n") && !short.contains("at length"),
+        "{short}"
+    );
+    assert!(long.contains("Where the result goes, at length"), "{long}");
+    assert!(long.contains("Tuning:\n"), "{long}");
+    assert!(long.contains("[possible values: low, high]"), "{long}");
+    assert!(long.contains("[aliases: yes]"), "{long}");
+    assert!(long.contains("install  Install [aliases: i]"), "{long}");
+    assert!(long.lines().all(|l| l.chars().count() <= 80), "{long}");
+    assert_eq!(cmd.get_long_version(), Some("1 (full)"));
+    let e = Parity::try_parse_args(["--version"]).unwrap_err();
+    assert_eq!(e.message(), "parity 1 (full)");
+}
+
+#[test]
+fn macro_definitions_validate() {
+    assert!(Parity::command().validate().is_ok());
+    assert!(Args::command().validate().is_ok());
+}
+
+hasami::cli! {
+    /// Shared options
+    #[derive(Debug)]
+    struct Common {
+        /// Say more
+        #[short, global] verbose: bool,
+        /// Config file
+        #[short, env = "FLAT_CONFIG"] config: Option<String>,
+    }
+
+    /// Uses the shared options
+    #[derive(Debug)]
+    #[name = "flat"]
+    struct Flat {
+        #[flatten] common: Common,
+        /// Own flag
+        own: bool,
+    }
+}
+
+#[test]
+fn flatten_inlines_another_struct() {
+    let f = Flat::try_parse_args(["-v", "-c", "x.toml", "--own"]).unwrap();
+    assert!(f.common.verbose);
+    assert_eq!(f.common.config.as_deref(), Some("x.toml"));
+    assert!(f.own);
+    let help = Flat::command().render_help();
+    assert!(
+        help.contains("-c, --config <CONFIG>  Config file"),
+        "{help}"
+    );
+    assert!(help.contains("--own"), "{help}");
+    assert!(Flat::command().validate().is_ok());
+}

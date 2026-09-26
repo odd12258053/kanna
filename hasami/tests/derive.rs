@@ -260,3 +260,159 @@ fn required_subcommand_through_derive() {
             .contains("remove  Remove things")
     );
 }
+
+// ------------------------------------------------- settings added for clap parity
+
+#[derive(hasami::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Fast,
+    #[hasami(name = "very-slow")]
+    Slow,
+}
+
+/// Parity settings
+#[derive(Args, Debug)]
+#[hasami(
+    name = "parity",
+    version = "1",
+    long_version = "1 (full)",
+    before_help = "Banner"
+)]
+#[hasami(
+    infer_long_args,
+    infer_subcommands,
+    term_width = 80,
+    args_override_self
+)]
+struct Parity {
+    /// Mode
+    #[hasami(value_enum, default = Mode::Fast, help_heading = "Tuning")]
+    mode: Mode,
+    /// Run
+    #[hasami(short, greedy)]
+    exec: Vec<String>,
+    /// Features
+    #[hasami(short, delimiter = ',')]
+    features: Vec<String>,
+    /// Force
+    #[hasami(requires = "output", conflicts_with = "dry_run", visible_alias = "yes")]
+    force: bool,
+    /// Output
+    #[hasami(long_help = "Where the result goes, at length")]
+    output: Option<String>,
+    /// Dry run
+    dry_run: bool,
+    /// Key
+    #[hasami(required_if_eq = ["mode", "very-slow"])]
+    key: Option<String>,
+    #[hasami(subcommand)]
+    cmd: Option<ParityCmd>,
+}
+
+#[derive(Commands, Debug)]
+enum ParityCmd {
+    /// Install
+    #[hasami(visible_alias = "i")]
+    Install,
+    /// Run everything after it
+    Run(RunArgs),
+}
+
+#[derive(Args, Debug)]
+struct RunArgs {
+    /// Program and arguments
+    #[hasami(positional, trailing)]
+    args: Vec<String>,
+}
+
+#[test]
+fn value_enum_derive() {
+    use hasami::ValueEnum;
+    assert_eq!(Mode::names(), ["fast", "very-slow"]);
+    assert_eq!("very-slow".parse::<Mode>(), Ok(Mode::Slow));
+    assert_eq!(Mode::Fast.to_string(), "fast");
+    assert!("slow".parse::<Mode>().is_err());
+}
+
+#[test]
+fn parity_settings_through_derive() {
+    let p = Parity::try_parse_args([
+        "--mode",
+        "very-slow",
+        "--key",
+        "k",
+        "-e",
+        "echo",
+        "a",
+        "-f",
+        "x,y",
+        "--output",
+        "o1",
+        "--output",
+        "o2",
+        "--forc",
+    ])
+    .unwrap();
+    assert_eq!(p.mode, Mode::Slow);
+    assert_eq!(p.exec, ["echo", "a"]);
+    assert_eq!(p.features, ["x", "y"]);
+    assert_eq!(p.output.as_deref(), Some("o2"));
+    assert!(p.force);
+    assert!(!p.dry_run);
+    assert_eq!(p.key.as_deref(), Some("k"));
+    let e = Parity::try_parse_args(["--mode", "very-slow"]).unwrap_err();
+    assert!(e.message().contains("--key <KEY>"), "{}", e.message());
+    let e = Parity::try_parse_args(["--force", "--output", "o", "--dry-run"]).unwrap_err();
+    assert_eq!(e.kind(), ErrorKind::Conflict);
+    let p = Parity::try_parse_args(["run", "prog", "-x"]).unwrap();
+    match p.cmd {
+        Some(ParityCmd::Run(r)) => assert_eq!(r.args, ["prog", "-x"]),
+        other => panic!("{other:?}"),
+    }
+    let cmd = Parity::command();
+    assert!(cmd.validate().is_ok());
+    let long = cmd.render_help();
+    assert!(long.starts_with("Banner\n\nParity settings\n\nUsage: parity"));
+    assert!(
+        long.contains("[possible values: fast, very-slow]"),
+        "{long}"
+    );
+    assert!(long.contains("Tuning:\n"), "{long}");
+    assert!(long.contains("[aliases: yes]"), "{long}");
+    assert!(long.contains("install  Install [aliases: i]"), "{long}");
+    assert!(long.lines().all(|l| l.chars().count() <= 80), "{long}");
+}
+
+/// Shared options
+#[derive(Args, Debug)]
+struct Common {
+    /// Say more
+    #[hasami(short, global)]
+    verbose: bool,
+    /// Config file
+    #[hasami(short)]
+    config: Option<String>,
+}
+
+/// Uses the shared options
+#[derive(Args, Debug)]
+#[hasami(name = "flat")]
+struct Flat {
+    #[hasami(flatten)]
+    common: Common,
+    /// Own flag
+    own: bool,
+}
+
+#[test]
+fn flatten_through_derive() {
+    let f = Flat::try_parse_args(["-v", "-c", "x.toml", "--own"]).unwrap();
+    assert!(f.common.verbose);
+    assert_eq!(f.common.config.as_deref(), Some("x.toml"));
+    assert!(f.own);
+    assert!(
+        Flat::command()
+            .render_help()
+            .contains("-c, --config <CONFIG>  Config file")
+    );
+}

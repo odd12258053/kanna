@@ -20,14 +20,14 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use hasami::{ArgDef, Command};
+use hasami::{ArgDef, Command, Relation};
 
 /// JSON Schema for the documents produced by [`to_json`].
 pub const JSON_SCHEMA: &str = include_str!("schema.json");
 
 /// The version of the document format, written into every document as
 /// `"format"`.
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 /// Render `cmd` (and every subcommand, built if lazy) as compact JSON.
 pub fn to_json(cmd: &Command) -> String {
@@ -151,6 +151,20 @@ impl Writer {
             o.w.opt_string(cmd.get_long_about());
             o.key("after_help");
             o.w.opt_string(cmd.get_after_help());
+            o.key("before_help");
+            o.w.opt_string(cmd.get_before_help());
+            o.key("long_version");
+            o.w.opt_string(cmd.get_long_version());
+            o.key("args_override_self");
+            o.w.bool(cmd.is_args_override_self());
+            o.key("arg_required_else_help");
+            o.w.bool(cmd.is_arg_required_else_help());
+            o.key("infer_long_args");
+            o.w.bool(cmd.is_infer_long_args());
+            o.key("infer_subcommands");
+            o.w.bool(cmd.is_infer_subcommands());
+            o.key("external_subcommands");
+            o.w.bool(cmd.allows_external_subcommands());
             o.key("help_flag");
             o.w.bool(cmd.has_help_flag());
             o.key("version_flag");
@@ -183,6 +197,8 @@ impl Writer {
                     o.w.string(s.name());
                     o.key("aliases");
                     o.w.array(s.aliases(), |w, a| w.string(a));
+                    o.key("visible_aliases");
+                    o.w.array(s.visible_aliases(), |w, a| w.string(a));
                     o.key("hidden");
                     o.w.bool(s.is_hidden());
                     o.key("about");
@@ -208,6 +224,8 @@ impl Writer {
             }
             o.key("aliases");
             o.w.array(a.aliases(), |w, s| w.string(s));
+            o.key("visible_aliases");
+            o.w.array(a.visible_aliases(), |w, s| w.string(s));
             o.key("short_aliases");
             o.w.array(a.short_aliases(), |w, c| w.string(&c.to_string()));
             o.key("positional");
@@ -224,12 +242,27 @@ impl Writer {
             o.w.bool(a.is_many());
             o.key("count");
             o.w.bool(a.is_count());
+            o.key("last_wins");
+            o.w.bool(a.is_last_wins());
+            o.key("greedy");
+            o.w.bool(a.is_greedy());
+            o.key("trailing");
+            o.w.bool(a.is_trailing());
+            o.key("delimiter");
+            match a.delimiter() {
+                Some(c) => o.w.string(&c.to_string()),
+                None => o.w.out.push_str("null"),
+            }
             o.key("hidden");
             o.w.bool(a.is_hidden());
             o.key("global");
             o.w.bool(a.is_global());
             o.key("help");
             o.w.opt_string(a.help());
+            o.key("long_help");
+            o.w.opt_string(a.long_help());
+            o.key("help_heading");
+            o.w.opt_string(a.help_heading());
             o.key("default");
             o.w.opt_string(a.default_text());
             o.key("default_missing");
@@ -243,6 +276,37 @@ impl Writer {
             o.w.opt_string(None);
             o.key("dynamic_completion");
             o.w.bool(a.completer().is_some());
+            let rel = |o: &mut Object<'_>, key: &str, f: fn(&Relation) -> Option<Vec<&str>>| {
+                o.key(key);
+                let items: Vec<Vec<&str>> = a.relations().iter().filter_map(f).collect();
+                o.w.array(&items, |w, parts| {
+                    if let [one] = parts.as_slice() {
+                        w.string(one);
+                    } else {
+                        w.array(parts, |w, s| w.string(s));
+                    }
+                });
+            };
+            rel(o, "requires", |r| match r {
+                Relation::Requires(id) => Some(vec![id]),
+                _ => None,
+            });
+            rel(o, "conflicts_with", |r| match r {
+                Relation::ConflictsWith(id) => Some(vec![id]),
+                _ => None,
+            });
+            rel(o, "required_unless", |r| match r {
+                Relation::RequiredUnless(id) => Some(vec![id]),
+                _ => None,
+            });
+            rel(o, "required_if_eq", |r| match r {
+                Relation::RequiredIfEq(id, v) => Some(vec![id, v]),
+                _ => None,
+            });
+            rel(o, "requires_if", |r| match r {
+                Relation::RequiresIf(v, id) => Some(vec![v, id]),
+                _ => None,
+            });
         });
     }
 }
@@ -316,15 +380,15 @@ mod tests {
     #[test]
     fn compact_document_shape() {
         let json = to_json(&sample());
-        assert!(json.starts_with(r#"{"format":1,"name":"app","version":"1.0","about":"About","#));
+        assert!(json.starts_with(r#"{"format":2,"name":"app","version":"1.0","about":"About","#));
         assert!(json.contains(r#""help":"How\nmany \"times\"""#));
-        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_optional":false,"required":false,"many":false,"count":false,"hidden":true,"global":false,"help":null,"default":null,"default_missing":null,"possible_values":["a","b"],"env":null,"dynamic_completion":false}"#));
+        assert!(json.contains(r#""id":"mode","long":"mode","short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":false,"takes_value":true,"value_name":"MODE","value_optional":false,"required":false,"many":false,"count":false,"last_wins":false,"greedy":false,"trailing":false,"delimiter":null,"hidden":true,"global":false,"help":null,"long_help":null,"help_heading":null,"default":null,"default_missing":null,"possible_values":["a","b"],"env":null,"dynamic_completion":false,"requires":[],"conflicts_with":[],"required_unless":[],"required_if_eq":[],"requires_if":[]}"#));
         assert!(json.contains(r#""groups":[{"name":"fmt","members":["json","yaml"],"required":false,"exclusive":true}]"#));
         assert!(json.contains(r#""requires":[["json","number"]]"#));
         assert!(json.contains(
-            r#""name":"lazy","aliases":["l"],"hidden":true,"about":null,"command":{"name":"lazy""#
+            r#""name":"lazy","aliases":["l"],"visible_aliases":[],"hidden":true,"about":null,"command":{"name":"lazy""#
         ));
-        assert!(json.contains(r#""id":"FILE","long":null,"short":null,"aliases":[],"short_aliases":[],"positional":true"#));
+        assert!(json.contains(r#""id":"FILE","long":null,"short":null,"aliases":[],"visible_aliases":[],"short_aliases":[],"positional":true"#));
         assert!(json.contains(r#""dynamic_completion":true"#));
         // Nested commands carry no "format" key.
         assert_eq!(json.matches("\"format\"").count(), 1);

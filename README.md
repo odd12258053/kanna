@@ -8,9 +8,9 @@ A layered command line argument parser for Rust.
 | Layer | Crate / feature | What you get | Cost on the sample CLI¹ |
 |-------|-----------------|--------------|------------------------:|
 | 1. Lexer | `hasami-core` | GNU/POSIX-correct `Parser::next()` loop, `OsString` values, zero dependencies, one file, no `unsafe` | 13.5 KiB, 0.6 s build |
-| 2. Builder | `hasami` | `Command` / `Arg<T>` with typed values, subcommands, constraints, `--help`, errors with tips | 58.1 KiB, 0.7 s |
-| 3. `cli!` | `hasami` | A struct-shaped DSL with `macro_rules!` only: doc comments become help | 63.7 KiB, 0.7 s |
-| 4. Derive | `hasami` + `derive` | `#[derive(Args)]` with the same semantics as `cli!` | 63.7 KiB, 2.3 s |
+| 2. Builder | `hasami` | `Command` / `Arg<T>` with typed values, subcommands, constraints (groups, requires, conditional), value enums, `--help` with headings and wrapping, errors with tips, definition validation | 71.8 KiB, 0.8 s |
+| 3. `cli!` | `hasami` | A struct-shaped DSL with `macro_rules!` only: doc comments become help, `#[flatten]`, `#[subcommand]` | 79.3 KiB, 0.8 s |
+| 4. Derive | `hasami` + `derive` | `#[derive(Args)]`, `#[derive(Commands)]`, `#[derive(ValueEnum)]` with the same semantics as `cli!` | 79.2 KiB, 2.3 s |
 | + | `hasami-complete`, `hasami-doc`, `hasami-schema` | Shell completion (5 shells, static and dynamic), manpage / Markdown / HTML, JSON description | separate crates |
 
 ¹ Binary size delta over an empty `main`, clean dev build time; full tables [below](#how-it-compares).
@@ -76,8 +76,15 @@ let n: u32 = m.get(&number);    // typed: the Arg is the key
 
 The `Arg` you defined is the key you read with: no strings, no downcasts.
 Values are parsed and validated before your code runs. Constraints:
-`Command::exclusive`, `Command::requires`, `Group`. Subcommands nest,
-may be lazy, and can see `global()` options of their parents.
+`Command::exclusive`, `Command::requires`, `Group`, and per argument
+`requires`, `conflicts_with`, `required_unless`, `required_if_eq`,
+`requires_if`. Subcommands nest, may be lazy, can see `global()` options
+of their parents, and may be inferred from a prefix or passed through as
+external subcommands. Repeated values come one per occurrence
+(`.many()`), several per occurrence (`.greedy()`) or split on a
+delimiter. Value enums (`value_enum!`) give help and parsing one source
+of truth. `Command::validate()` reports every mistake in a definition
+and runs by itself in debug builds.
 
 ```text
 $ greet --nubmer 2 world
@@ -188,18 +195,18 @@ stripped ([ADR-0007]).
 
 | Library | Style | Size overhead | Build (dev / release) | Deps | Invalid UTF-8 |
 |---------|-------|--------------:|----------------------:|-----:|:-------------:|
-| pico-args | imperative | 11.5 KiB | 0.65 s / 0.87 s | 1 | yes |
-| **hasami-core** | imperative | **13.5 KiB** | **0.61 s / 0.84 s** | **0** | yes |
-| argh | derive | 15.7 KiB | 3.20 s / 3.36 s | 13 | no |
-| lexopt | imperative | 16.6 KiB | 0.62 s / 0.89 s | 1 | yes |
-| **hasami** (builder, `help`) | builder | **58.1 KiB** | **0.67 s / 1.02 s** | **0** | yes |
-| **hasami** (`cli!`, `help`) | macro DSL | 63.7 KiB | 0.73 s / 1.10 s | 0 | yes |
-| **hasami** (derive, `help`) | derive | 63.7 KiB | 2.3 s / 2.5 s | 4 | yes |
-| **hasami** (builder, `full`) | builder | 72.3 KiB | 0.73 s / 1.08 s | 0 | yes |
-| bpaf | combinators | 95.1 KiB | 0.68 s / 1.10 s | 1 | yes |
-| clap 4 | builder | 199.0 KiB | 1.79 s / 2.60 s | 4 | yes |
+| pico-args | imperative | 11.5 KiB | 0.76 s / 1.09 s | 1 | yes |
+| **hasami-core** | imperative | **13.5 KiB** | **0.76 s / 1.06 s** | **0** | yes |
+| argh | derive | 15.7 KiB | 3.31 s / 3.46 s | 13 | no |
+| lexopt | imperative | 16.6 KiB | 0.78 s / 1.07 s | 1 | yes |
+| **hasami** (builder, `help`) | builder | **71.8 KiB** | **0.86 s / 1.31 s** | **0** | yes |
+| **hasami** (`cli!`, `help`) | macro DSL | 79.3 KiB | 0.87 s / 1.38 s | 0 | yes |
+| **hasami** (derive, `help`) | derive | 79.2 KiB | 2.3 s / 2.5 s | 4 | yes |
+| **hasami** (builder, `full`) | builder | 87.6 KiB | 0.83 s / 1.40 s | 0 | yes |
+| bpaf | combinators | 95.1 KiB | 0.78 s / 1.25 s | 1 | yes |
+| clap 4 | builder | 199.0 KiB | 1.79 s / 2.73 s | 4 | yes |
 
-Budgets enforced in CI: core ≤ 20 KiB, builder+help ≤ 60 KiB, builder
+Budgets enforced in CI: core ≤ 20 KiB, builder+help ≤ 75 KiB, builder
 with every feature < ½ of clap, core clean build ≤ 2 s, full ≤ 4 s.
 
 ## Design principles

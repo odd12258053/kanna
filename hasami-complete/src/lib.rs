@@ -158,6 +158,8 @@ pub(crate) struct Node {
     pub version_flag: bool,
     pub positionals: Vec<Opt>,
     pub subs: Vec<Node>,
+    /// Visible aliases of this node's own name.
+    pub aliases: Vec<String>,
 }
 
 impl Node {
@@ -169,7 +171,12 @@ impl Node {
         let opt = |a: &ArgDef| Opt {
             short: a.short(),
             long: a.long().map(str::to_owned),
-            aliases: a.aliases().to_vec(),
+            aliases: a
+                .aliases()
+                .iter()
+                .chain(a.visible_aliases())
+                .cloned()
+                .collect(),
             help: a
                 .help()
                 .unwrap_or("")
@@ -206,6 +213,7 @@ impl Node {
                     let mut p = path.clone();
                     p.push(s.name().to_owned());
                     let mut node = Node::build_at(&s.build(), p);
+                    node.aliases = s.visible_aliases().to_vec();
                     if node.about.is_empty() {
                         node.about = s
                             .summary()
@@ -219,6 +227,7 @@ impl Node {
                 })
                 .collect(),
             path,
+            aliases: Vec::new(),
         }
     }
 
@@ -258,6 +267,7 @@ impl Node {
             if let Some(name) = s.path.last() {
                 w.push(name.clone());
             }
+            w.extend(s.aliases.iter().cloned());
         }
         w
     }

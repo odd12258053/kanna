@@ -6,8 +6,8 @@ use std::ffi::OsString;
 use std::fmt::Display;
 use std::str::FromStr;
 
-use crate::arg::ArgDef;
-use crate::{Arg, Command, Matches, Subcommand};
+use crate::arg::{ArgDef, Relation};
+use crate::{Arg, Command, Matches, Subcommand, ValueEnum};
 
 /// Settings gathered from a field's attributes and doc comment, turned into
 /// a typed [`Arg`] by one of the finalisers.
@@ -37,7 +37,15 @@ pub struct Common {
     value_name: Option<&'static str>,
     #[cfg(feature = "env")]
     env: Option<&'static str>,
-    possible: &'static [&'static str],
+    possible: Vec<String>,
+    visible_aliases: Vec<&'static str>,
+    long_help: Option<&'static str>,
+    heading: Option<&'static str>,
+    last_wins: bool,
+    greedy: bool,
+    trailing: bool,
+    delimiter: Option<char>,
+    relations: Vec<Relation>,
 }
 
 /// `snake_case` to `kebab-case`.
@@ -81,7 +89,15 @@ impl Common {
             value_name: None,
             #[cfg(feature = "env")]
             env: None,
-            possible: &[],
+            possible: Vec::new(),
+            visible_aliases: Vec::new(),
+            long_help: None,
+            heading: None,
+            last_wins: false,
+            greedy: false,
+            trailing: false,
+            delimiter: None,
+            relations: Vec::new(),
         }
     }
 
@@ -113,9 +129,20 @@ impl Common {
             def.short = Some(c);
         }
         def.aliases = self.aliases.iter().map(|a| (*a).to_owned()).collect();
+        def.visible_aliases = self
+            .visible_aliases
+            .iter()
+            .map(|a| (*a).to_owned())
+            .collect();
         def.short_aliases.clone_from(&self.short_aliases);
         def.hidden = self.hidden;
         def.global = self.global;
+        def.long_help = self.long_help.map(str::to_owned);
+        def.heading = self.heading.map(str::to_owned);
+        def.last_wins = self.last_wins;
+        def.greedy = self.greedy;
+        def.trailing = self.trailing;
+        def.relations.clone_from(&self.relations);
         if let Some(v) = &mut def.value {
             if let Some(name) = self.value_name {
                 v.name = name.to_owned();
@@ -129,7 +156,8 @@ impl Common {
             {
                 v.env = self.env.map(str::to_owned);
             }
-            v.possible = self.possible.iter().map(|p| (*p).to_owned()).collect();
+            v.possible.clone_from(&self.possible);
+            v.delimiter = self.delimiter;
         }
     }
 
@@ -233,8 +261,74 @@ impl<T> FieldSpec<T> {
     #[cfg(not(feature = "env"))]
     pub fn env(&mut self, _var: &'static str) {}
     /// `possible = ["a", "b"]`.
-    pub fn possible(&mut self, values: &'static [&'static str]) {
-        self.common.possible = values;
+    pub fn possible(&mut self, values: &[&str]) {
+        self.common.possible = values.iter().map(|p| (*p).to_owned()).collect();
+    }
+    /// `value_enum`: the possible values come from the field type.
+    pub fn value_enum(&mut self)
+    where
+        T: ValueEnum,
+    {
+        self.common.possible = T::names();
+    }
+    /// `visible_alias = "name"`.
+    pub fn visible_alias(&mut self, name: &'static str) {
+        self.common.visible_aliases.push(name);
+    }
+    /// `long_help = "text"`.
+    pub fn long_help(&mut self, text: &'static str) {
+        self.common.long_help = Some(text);
+    }
+    /// `help_heading = "Title"`.
+    pub fn help_heading(&mut self, title: &'static str) {
+        self.common.heading = Some(title);
+    }
+    /// `last_wins`.
+    pub fn last_wins(&mut self) {
+        self.common.last_wins = true;
+    }
+    /// `greedy` (for `Vec<T>` fields).
+    pub fn greedy(&mut self) {
+        self.common.greedy = true;
+    }
+    /// `trailing` (for positional `Vec<T>` fields).
+    pub fn trailing(&mut self) {
+        self.common.trailing = true;
+    }
+    /// `delimiter = ','` (for `Vec<T>` fields).
+    pub fn delimiter(&mut self, c: char) {
+        self.common.delimiter = Some(c);
+    }
+    /// `requires = "field"`.
+    pub fn requires(&mut self, field: &str) {
+        self.common
+            .relations
+            .push(Relation::Requires(field.to_owned()));
+    }
+    /// `conflicts_with = "field"`.
+    pub fn conflicts_with(&mut self, field: &str) {
+        self.common
+            .relations
+            .push(Relation::ConflictsWith(field.to_owned()));
+    }
+    /// `required_unless = "field"`.
+    pub fn required_unless(&mut self, field: &str) {
+        self.common
+            .relations
+            .push(Relation::RequiredUnless(field.to_owned()));
+    }
+    /// `required_if_eq = ["field", "value"]`.
+    pub fn required_if_eq(&mut self, pair: &[&str; 2]) {
+        self.common.relations.push(Relation::RequiredIfEq(
+            pair[0].to_owned(),
+            pair[1].to_owned(),
+        ));
+    }
+    /// `requires_if = ["value", "field"]`.
+    pub fn requires_if(&mut self, pair: &[&str; 2]) {
+        self.common
+            .relations
+            .push(Relation::RequiresIf(pair[0].to_owned(), pair[1].to_owned()));
     }
 
     /// Finaliser for `bool` fields.
@@ -304,6 +398,7 @@ pub struct SubSpec {
     name: Option<&'static str>,
     about: String,
     aliases: Vec<&'static str>,
+    visible_aliases: Vec<&'static str>,
     hidden: bool,
 }
 
@@ -316,6 +411,7 @@ impl SubSpec {
             name: None,
             about: String::new(),
             aliases: Vec::new(),
+            visible_aliases: Vec::new(),
             hidden: false,
         }
     }
@@ -339,6 +435,10 @@ impl SubSpec {
     pub fn hidden(&mut self) {
         self.hidden = true;
     }
+    /// `visible_alias = "x"`.
+    pub fn visible_alias(&mut self, name: &'static str) {
+        self.visible_aliases.push(name);
+    }
     /// The subcommand name this variant answers to.
     pub fn subcommand_name(&self) -> String {
         self.name
@@ -359,6 +459,9 @@ impl SubSpec {
         }
         for a in self.aliases {
             sub = sub.alias(a);
+        }
+        for a in self.visible_aliases {
+            sub = sub.visible_alias(a);
         }
         if self.hidden {
             sub = sub.hidden();
@@ -419,6 +522,38 @@ impl CommandSpec {
     pub fn disable_version(&mut self) {
         self.cmd.disable_version = true;
     }
+    /// `before_help = "..."`.
+    pub fn before_help(&mut self, text: impl Into<String>) {
+        self.cmd.before_help = Some(text.into());
+    }
+    /// `long_version = "..."`.
+    pub fn long_version(&mut self, text: impl Into<String>) {
+        self.cmd.long_version = Some(text.into());
+    }
+    /// `args_override_self`.
+    pub fn args_override_self(&mut self) {
+        self.cmd.args_override_self = true;
+    }
+    /// `arg_required_else_help`.
+    pub fn arg_required_else_help(&mut self) {
+        self.cmd.arg_required_else_help = true;
+    }
+    /// `infer_long_args`.
+    pub fn infer_long_args(&mut self) {
+        self.cmd.infer_long_args = true;
+    }
+    /// `infer_subcommands`.
+    pub fn infer_subcommands(&mut self) {
+        self.cmd.infer_subcommands = true;
+    }
+    /// `allow_external_subcommands`.
+    pub fn allow_external_subcommands(&mut self) {
+        self.cmd.external_subcommands = true;
+    }
+    /// `term_width = 80`.
+    pub fn term_width(&mut self, columns: usize) {
+        self.cmd.term_width = Some(columns);
+    }
     /// Produce the command, ready for `.arg()` calls.
     pub fn finish(self) -> Command {
         let mut cmd = self.cmd;
@@ -444,9 +579,33 @@ pub fn trim_doc(raw: &str) -> String {
     out
 }
 
+/// The `FromStr` error of a `value_enum!` type.
+pub fn unknown_enum_value(given: &str, names: &[String]) -> String {
+    [
+        "unknown value '",
+        given,
+        "' (expected one of: ",
+        &names.join(", "),
+        ")",
+    ]
+    .concat()
+}
+
 /// The command for a unit enum variant (no arguments of its own).
 pub fn unit_command() -> Command {
     Command::new("")
+}
+
+/// Inline the arguments, groups, requirements and subcommands of `inner`
+/// into `cmd` (`#[flatten]`). The inner command's own metadata (name,
+/// version, about) is ignored.
+pub fn flatten(mut cmd: Command, inner: Command) -> Command {
+    cmd.args.extend(inner.args);
+    cmd.groups.extend(inner.groups);
+    cmd.requires.extend(inner.requires);
+    cmd.subcommands.extend(inner.subcommands);
+    cmd.subcommand_required |= inner.subcommand_required;
+    cmd
 }
 
 /// Add every subcommand of an enum to `cmd`.

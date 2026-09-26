@@ -25,3 +25,5 @@ Numbers are never reused. A superseded ADR keeps its file and gets
 | [0014](0014-derive-design.md) | `#[derive(Args)]` design and the `Cli` / `Subcommands` traits | Accepted |
 | [0015](0015-generator-crates-depend-on-hasami.md) | Generator crates depend on `hasami`; no re-export features | Accepted |
 | [0016](0016-generators.md) | Completion, documentation and schema generators | Accepted |
+| [0017](0017-repeats-are-errors-and-definition-validation.md) | Repeated arguments are errors; definitions are validated | Accepted |
+| [0018](0018-clap-parity-features.md) | Closing the feature gaps against clap (and the size budget change) | Accepted |

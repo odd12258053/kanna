@@ -1,6 +1,6 @@
 # ADR-0009: Parse semantics of the declarative layer
 
-Status: Accepted (2026-09-26)
+Status: Accepted (2026-09-26). Amended by ADR-0017 (repeats) and ADR-0018 (new settings).
 
 ## Context
 
@@ -12,8 +12,8 @@ standards and must be fixed.
 
 | Situation | Behaviour |
 |-----------|-----------|
-| Option repeated, single value (`-n1 -n2`) | Last wins. GNU tools behave this way and it lets shell aliases be overridden. `Matches::occurrences` still reports 2. |
-| Flag repeated (`--shout --shout`) | Accepted. Use `.count()` to observe repeats. |
+| Option repeated, single value (`-n1 -n2`) | Error `Repeated` (ADR-0017). `Arg::last_wins()` or `Command::args_override_self()` restores last-wins; `Matches::occurrences` reports 2 either way. |
+| Flag repeated (`--shout --shout`) | Error `Repeated` unless `.count()`, `last_wins()` or `args_override_self()`. |
 | Flag given a value (`--shout=yes`) | Error `UnexpectedValue`, wording "which takes no value". Comes for free from the core's pending-value check. |
 | Optional value (`.default_missing`) | Only an attached value counts (`--color=never`, `-cnever`); `--color never` treats `never` as the next positional. Same rule as `getopt_long` and the only unambiguous one. |
 | Value looking like an option (`-n -5`) | Taken as the value, per ADR-0003. |

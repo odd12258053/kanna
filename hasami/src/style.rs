@@ -60,6 +60,20 @@ macro_rules! accessor {
 }
 
 impl Styles {
+    /// The palette a [`Command`](crate::Command) starts with:
+    /// [`COLORED`](Styles::COLORED) with the feature, [`PLAIN`](Styles::PLAIN)
+    /// without.
+    pub const fn default_palette() -> Styles {
+        #[cfg(feature = "color")]
+        {
+            Styles::COLORED
+        }
+        #[cfg(not(feature = "color"))]
+        {
+            Styles::PLAIN
+        }
+    }
+
     /// No colour at all.
     pub const PLAIN: Styles = Styles {
         #[cfg(feature = "color")]
@@ -106,6 +120,66 @@ impl Styles {
         reset,
     }
 
+    /// Replace the escape sequence for section headers. Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_header(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.header = seq;
+        }
+        self
+    }
+    /// Replace the escape sequence for literals (option and subcommand names). Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_literal(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.literal = seq;
+        }
+        self
+    }
+    /// Replace the escape sequence for value placeholders. Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_placeholder(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.placeholder = seq;
+        }
+        self
+    }
+    /// Replace the escape sequence for the `error:` word. Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_error(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.error = seq;
+        }
+        self
+    }
+    /// Replace the escape sequence for the `tip:` word. Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_tip(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.tip = seq;
+        }
+        self
+    }
+    /// Replace the escape sequence for invalid input echoed back. Without the `color`
+    /// feature the call is accepted and ignored.
+    #[allow(unused_mut, unused_variables)]
+    pub const fn with_invalid(mut self, seq: &'static str) -> Styles {
+        #[cfg(feature = "color")]
+        {
+            self.inner.invalid = seq;
+        }
+        self
+    }
     /// `true` when every accessor is empty.
     #[inline(always)]
     pub fn is_plain(&self) -> bool {

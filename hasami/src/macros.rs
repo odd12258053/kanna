@@ -48,8 +48,11 @@
 /// **Structs** become argument sets. Doc comments, `#[derive(...)]` and
 /// hasami settings may appear in any order. Settings are comma-separated
 /// inside one or more `#[...]`:
-/// `name = expr`, `version = expr`, `about = expr`, `long_about = expr`,
-/// `after_help = expr`, `disable_help`, `disable_version`.
+/// `name = expr`, `version = expr`, `long_version = expr`, `about = expr`,
+/// `long_about = expr`, `before_help = expr`, `after_help = expr`,
+/// `disable_help`, `disable_version`, `args_override_self`,
+/// `arg_required_else_help`, `infer_long_args`, `infer_subcommands`,
+/// `allow_external_subcommands`, `term_width = expr`.
 /// The doc comment is the `about` text. The command name defaults to
 /// `CARGO_PKG_NAME`.
 ///
@@ -68,15 +71,26 @@
 /// `alias = "name"`, `short_alias = 'c'`, `positional`, `count`, `hidden`,
 /// `global`, `required` (for `Vec`), `value_name = "NAME"`,
 /// `default = expr`, `default_missing = expr`, `env = "VAR"`,
-/// `possible = ["a", "b"]`, `help = "text"`. The long name defaults to the
-/// kebab-case field name; the doc comment is the help text.
+/// `possible = ["a", "b"]`, `value_enum` (possible values from a
+/// [`ValueEnum`](crate::ValueEnum) type), `help = "text"`,
+/// `long_help = "text"`, `help_heading = "Title"`, `visible_alias = "name"`,
+/// `last_wins`, `greedy` and `delimiter = ','` (for `Vec`), `trailing`
+/// (for a positional `Vec`), `requires = "field"`,
+/// `conflicts_with = "field"`, `required_unless = "field"`,
+/// `required_if_eq = ["field", "value"]`, `requires_if = ["value", "field"]`.
+/// The long name defaults to the kebab-case field name; the doc comment is
+/// the help text.
 /// `#[subcommand] field: Option<Enum>` or `#[subcommand] field: Enum`
 /// (required) attaches an enum defined with this macro.
+/// `#[flatten] field: Struct` inlines every argument, group and constraint
+/// of another struct defined with this macro (or `#[derive(Args)]`), so a
+/// set of common options can be shared between commands.
 ///
 /// **Enums** become subcommand sets. Each variant is `Name` (no arguments)
 /// or `Name(Struct)` where `Struct` is defined with this macro. Variant
 /// settings: `name = "x"` (default: kebab-case of the variant),
-/// `alias = "x"`, `hidden`. The doc comment is the summary; without one the
+/// `alias = "x"`, `visible_alias = "x"`, `hidden`. The doc comment is the
+/// summary; without one the
 /// payload struct's doc comment is used.
 ///
 /// # Generated API
@@ -140,6 +154,10 @@ macro_rules! __cli_attrs {
 macro_rules! __cli_fields {
     (@munch $ctx:tt { $($done:tt)* } [ ]) => {
         $crate::__cli_emit! { $ctx { $($done)* } }
+    };
+    (@munch $ctx:tt { $($done:tt)* }
+        [ $(#[doc = $d:literal])* #[flatten] $fvis:vis $fname:ident : $t:ty $(, $($rest:tt)*)? ]) => {
+        $crate::__cli_fields! { @munch $ctx { $($done)* [ $fvis $fname [flatten $t] [] ] } [ $($($rest)*)? ] }
     };
     (@munch $ctx:tt { $($done:tt)* }
         [ $(#[doc = $d:literal])* #[subcommand] $fvis:vis $fname:ident : Option<$t:ty> $(, $($rest:tt)*)? ]) => {
@@ -231,6 +249,7 @@ macro_rules! __cli_field_type {
     (plain $t:ty) => { $t };
     (subopt $t:ty) => { Option<$t> };
     (subreq $t:ty) => { $t };
+    (flatten $t:ty) => { $t };
 }
 
 #[doc(hidden)]
@@ -243,6 +262,7 @@ macro_rules! __cli_arg_type {
     (plain $t:ty) => { $crate::Arg<$t> };
     (subopt $t:ty) => { () };
     (subreq $t:ty) => { () };
+    (flatten $t:ty) => { () };
 }
 
 #[doc(hidden)]
@@ -275,6 +295,7 @@ macro_rules! __cli_build_arg {
     }};
     ($fname:ident [subopt $t:ty] []) => { () };
     ($fname:ident [subreq $t:ty] []) => { () };
+    ($fname:ident [flatten $t:ty] []) => { () };
 }
 
 #[doc(hidden)]
@@ -335,6 +356,45 @@ macro_rules! __cli_field_settings {
     ($s:ident [possible = [$($p:literal),* $(,)?] $(, $($rest:tt)*)?]) => {
         $s.possible(&[$($p),*]); $crate::__cli_field_settings!($s [$($($rest)*)?]);
     };
+    ($s:ident [value_enum $(, $($rest:tt)*)?]) => {
+        $s.value_enum(); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [visible_alias = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.visible_alias($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [long_help = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.long_help($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [help_heading = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.help_heading($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [last_wins $(, $($rest:tt)*)?]) => {
+        $s.last_wins(); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [greedy $(, $($rest:tt)*)?]) => {
+        $s.greedy(); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [trailing $(, $($rest:tt)*)?]) => {
+        $s.trailing(); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [delimiter = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.delimiter($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [requires = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.requires($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [conflicts_with = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.conflicts_with($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [required_unless = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.required_unless($v); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [required_if_eq = [$a:literal, $b:literal] $(, $($rest:tt)*)?]) => {
+        $s.required_if_eq(&[$a, $b]); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [requires_if = [$a:literal, $b:literal] $(, $($rest:tt)*)?]) => {
+        $s.requires_if(&[$a, $b]); $crate::__cli_field_settings!($s [$($($rest)*)?]);
+    };
 }
 
 #[doc(hidden)]
@@ -365,6 +425,30 @@ macro_rules! __cli_cmd_settings {
     ($s:ident [disable_version $(, $($rest:tt)*)?]) => {
         $s.disable_version(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
     };
+    ($s:ident [before_help = $v:expr $(, $($rest:tt)*)?]) => {
+        $s.before_help($v); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [long_version = $v:expr $(, $($rest:tt)*)?]) => {
+        $s.long_version($v); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [args_override_self $(, $($rest:tt)*)?]) => {
+        $s.args_override_self(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [arg_required_else_help $(, $($rest:tt)*)?]) => {
+        $s.arg_required_else_help(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [infer_long_args $(, $($rest:tt)*)?]) => {
+        $s.infer_long_args(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [infer_subcommands $(, $($rest:tt)*)?]) => {
+        $s.infer_subcommands(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [allow_external_subcommands $(, $($rest:tt)*)?]) => {
+        $s.allow_external_subcommands(); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [term_width = $v:expr $(, $($rest:tt)*)?]) => {
+        $s.term_width($v); $crate::__cli_cmd_settings!($s [$($($rest)*)?]);
+    };
 }
 
 #[doc(hidden)]
@@ -375,6 +459,9 @@ macro_rules! __cli_add_arg {
     };
     ($cmd:ident, $fname:ident, [subreq $t:ty]) => {
         $crate::__macro::add_subcommands($cmd, <$t as $crate::Subcommands>::subcommands(), true)
+    };
+    ($cmd:ident, $fname:ident, [flatten $t:ty]) => {
+        $crate::__macro::flatten($cmd, <$t as $crate::Cli>::command())
     };
     ($cmd:ident, $fname:ident, [$($kind:tt)*]) => {
         $cmd.arg(&$fname)
@@ -389,6 +476,9 @@ macro_rules! __cli_extract {
     };
     ($m:ident, $fname:ident, [subreq $t:ty]) => {
         $crate::__macro::required_subcommand(<$t as $crate::Subcommands>::from_matches($m)?)?
+    };
+    ($m:ident, $fname:ident, [flatten $t:ty]) => {
+        <$t as $crate::Cli>::from_matches($m)?
     };
     ($m:ident, $fname:ident, [$($kind:tt)*]) => {
         $m.get(&$fname)
@@ -452,6 +542,9 @@ macro_rules! __cli_sub_settings {
     };
     ($s:ident [hidden $(, $($rest:tt)*)?]) => {
         $s.hidden(); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
+    };
+    ($s:ident [visible_alias = $v:literal $(, $($rest:tt)*)?]) => {
+        $s.visible_alias($v); $crate::__cli_sub_settings!($s [$($($rest)*)?]);
     };
 }
 

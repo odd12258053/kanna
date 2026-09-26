@@ -1,47 +1,22 @@
-//! Typed values with the builder: `FromStr` types, `possible` values,
-//! custom parsers and validators, defaults for types without `Display`,
-//! repeated options, counters, optional values and raw `OsString`s.
+//! Typed values with the builder: value enums, `possible` values, custom
+//! parsers and validators, defaults for types without `Display`, repeated
+//! options with delimiters, counters, optional values and raw `OsString`s.
 //!
 //! Run: `cargo run --example values -- -vv --level warn --timeout 2m30s -I lib -I vendor src`
 //!      `cargo run --example values -- --color=never --retries 99 src`   (fails)
 #![forbid(unsafe_code)]
 
 use std::ffi::OsString;
-use std::fmt;
-use std::str::FromStr;
 use std::time::Duration;
 
 use hasami::{Arg, Command};
 
-/// A value type of its own. `possible` lists the accepted spellings in
-/// help and checks them before `FromStr` runs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Level {
-    Error,
-    Warn,
-    Info,
-}
-
-impl FromStr for Level {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Level, String> {
-        match s {
-            "error" => Ok(Level::Error),
-            "warn" => Ok(Level::Warn),
-            "info" => Ok(Level::Info),
-            other => Err(format!("unknown level '{other}'")),
-        }
-    }
-}
-
-impl fmt::Display for Level {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Level::Error => "error",
-            Level::Warn => "warn",
-            Level::Info => "info",
-        })
-    }
+// A value type of its own. `value_enum!` writes the `ValueEnum`, `FromStr`
+// and `Display` impls from one list, so the names shown in help and the
+// names accepted cannot drift apart.
+hasami::value_enum! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum Level { Error = "error", Warn = "warn", Info = "info" }
 }
 
 /// `2m30s`, `45s`, `1h`. The error text ends up in the parse error.
@@ -83,8 +58,7 @@ fn parse_retries(s: &str) -> Result<u8, String> {
 fn main() {
     let level = Arg::new("level")
         .short('l')
-        .value::<Level>()
-        .possible(["error", "warn", "info"])
+        .value_enum::<Level>()
         .default(Level::Warn)
         .help("Minimum severity to report");
     // `Duration` has no `Display`, so the help text is given separately.
@@ -105,12 +79,14 @@ fn main() {
         .default_missing("always".to_owned())
         .default("auto".to_owned())
         .help("When to use colour");
+    // `-I a -I b` and `-I a:b` both give two directories.
     let include = Arg::new("include")
         .short('I')
         .value::<String>()
         .value_name("DIR")
         .many()
-        .help("Extra directory to search (repeatable)");
+        .delimiter(':')
+        .help("Extra directory to search (repeatable, or ':'-separated)");
     let verbose = Arg::new("verbose")
         .short('v')
         .count()

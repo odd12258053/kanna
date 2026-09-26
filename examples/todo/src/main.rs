@@ -19,10 +19,14 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use hasami::{Cli, Error};
 use hasami_complete::Shell;
+
+hasami::value_enum! {
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    enum Priority { High = "high", Normal = "normal", Low = "low" }
+}
 
 hasami::cli! {
     /// Keep a todo list in a text file
@@ -56,7 +60,7 @@ hasami::cli! {
 
     struct Add {
         /// Importance
-        #[short, default = Priority::Normal, possible = ["high", "normal", "low"]]
+        #[short, value_enum, default = Priority::Normal]
         priority: Priority,
         /// Words of the task
         #[positional, required, value_name = "WORD"]
@@ -80,41 +84,21 @@ hasami::cli! {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Priority {
-    High,
-    Normal,
-    Low,
-}
-
-impl FromStr for Priority {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Priority, String> {
-        match s {
-            "high" | "A" => Ok(Priority::High),
-            "normal" | "B" => Ok(Priority::Normal),
-            "low" | "C" => Ok(Priority::Low),
-            other => Err(format!("unknown priority '{other}'")),
-        }
-    }
-}
-
-impl fmt::Display for Priority {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Priority::High => "high",
-            Priority::Normal => "normal",
-            Priority::Low => "low",
-        })
-    }
-}
-
 impl Priority {
     fn letter(self) -> char {
         match self {
             Priority::High => 'A',
             Priority::Normal => 'B',
             Priority::Low => 'C',
+        }
+    }
+
+    fn from_letter(c: u8) -> Option<Priority> {
+        match c {
+            b'A' => Some(Priority::High),
+            b'B' => Some(Priority::Normal),
+            b'C' => Some(Priority::Low),
+            _ => None,
         }
     }
 }
@@ -133,10 +117,7 @@ impl Task {
             (false, line.strip_prefix("[ ] ")?)
         };
         let (priority, text) = match rest.as_bytes() {
-            [b'(', p, b')', b' ', ..] => (
-                Priority::from_str(&(*p as char).to_string()).ok()?,
-                rest[4..].to_owned(),
-            ),
+            [b'(', p, b')', b' ', ..] => (Priority::from_letter(*p)?, rest[4..].to_owned()),
             _ => (Priority::Normal, rest.to_owned()),
         };
         Some(Task {

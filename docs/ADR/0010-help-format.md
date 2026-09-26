@@ -1,6 +1,6 @@
 # ADR-0010: Help output format
 
-Status: Accepted (2026-09-26)
+Status: Accepted (2026-09-26). Amended by ADR-0018 (wrapping, headings, aliases, long/short forms).
 
 ## Context
 
@@ -46,5 +46,8 @@ Options:
 ## Consequences
 
 * Snapshot tests can be compared against clap output by eye when migrating.
-* Line wrapping of long help strings to the terminal width is not done;
-  authors control line breaks with `\n` in the help text.
+* Since ADR-0018, help is wrapped at `term_width` / `$COLUMNS` / 100
+  columns; explicit line breaks and indentation are kept. Custom
+  `help_heading` sections follow `Options`; visible aliases render as
+  `[aliases: ..]`; `-h` and `--help` differ where `long_about` or
+  `long_help` are set.

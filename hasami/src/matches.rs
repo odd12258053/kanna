@@ -46,6 +46,10 @@ pub(crate) struct Slot {
 pub struct Matches {
     pub(crate) slots: Vec<Slot>,
     pub(crate) sub: Option<Box<(String, Matches)>>,
+    /// An unknown subcommand accepted through
+    /// [`Command::allow_external_subcommands`](crate::Command::allow_external_subcommands):
+    /// its name and every argument after it, untouched.
+    pub(crate) external: Option<(OsString, Vec<OsString>)>,
 }
 
 impl std::fmt::Debug for Matches {
@@ -60,6 +64,9 @@ impl std::fmt::Debug for Matches {
         if let Some(sub) = &self.sub {
             s.field("subcommand", &sub.0);
             s.field("subcommand_matches", &sub.1);
+        }
+        if let Some((name, args)) = &self.external {
+            s.field("external_subcommand", &(name, args));
         }
         s.finish()
     }
@@ -77,6 +84,7 @@ impl Matches {
                 })
                 .collect(),
             sub: None,
+            external: None,
         }
     }
 
@@ -161,5 +169,23 @@ impl Matches {
             Some((n, m)) if n == name => Some(m),
             _ => None,
         }
+    }
+
+    /// An external subcommand (one not defined on the command, accepted
+    /// through [`Command::allow_external_subcommands`](crate::Command::allow_external_subcommands)):
+    /// its name and the raw arguments that followed it.
+    pub fn external_subcommand(&self) -> Option<(&OsStr, &[OsString])> {
+        self.external
+            .as_ref()
+            .map(|(name, args)| (name.as_os_str(), args.as_slice()))
+    }
+
+    /// The ids of every argument that was given explicitly (on the command
+    /// line or through the environment), in definition order.
+    pub fn ids(&self) -> impl Iterator<Item = &str> {
+        self.slots
+            .iter()
+            .filter(|s| matches!(s.source, Some(Source::CommandLine | Source::Env)))
+            .map(|s| s.id.as_str())
     }
 }

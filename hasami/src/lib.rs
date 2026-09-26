@@ -74,7 +74,7 @@ mod style;
 mod suggest;
 mod traits;
 
-pub use arg::{Arg, ArgDef, Completer};
+pub use arg::{Arg, ArgDef, Completer, Relation, ValueEnum};
 pub use command::{Command, Group, Subcommand};
 pub use error::{Error, ErrorKind};
 pub use matches::{Matches, Source};
@@ -82,11 +82,12 @@ pub use style::{Stream, Styles};
 pub use traits::{Cli, Subcommands};
 
 #[cfg(feature = "derive")]
-pub use hasami_derive::{Args, Commands};
+pub use hasami_derive::{Args, Commands, ValueEnum};
 
 /// Convenience re-exports: the traits, the builder types and the derives.
 pub mod prelude {
-    pub use crate::{Arg, Cli, Command, Subcommands};
+    // `ValueEnum` is both the trait and, with `derive`, the derive macro.
+    pub use crate::{Arg, Cli, Command, Subcommands, ValueEnum};
     #[cfg(feature = "derive")]
     pub use hasami_derive::{Args, Commands};
 }

@@ -1,0 +1,19 @@
+[package]
+name = "kanna-example-rpn"
+description = "A reverse Polish calculator session built on the kanna-prompt REPL. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "rpn"
+path = "src/main.rs"
+
+[dependencies]
+kanna = { workspace = true, features = ["help", "suggest"] }
+kanna-prompt = { path = "../../kanna-prompt", version = "0.2.0" }
+
+[lints]
+workspace = true

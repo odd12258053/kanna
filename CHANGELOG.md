@@ -20,7 +20,8 @@ migration note here.
   line-editing front ends; feature `complete` adds `complete_line`.
 * `kanna::split_words`: the shell-like splitter used by
   `check_examples` and the REPL, now public.
-* `examples/todo` gains a `repl` subcommand.
+* `examples/todo` gains a `repl` subcommand; `examples/rpn` is a
+  calculator session whose prompt verbs are a definition of their own.
 
 ## [0.2.0] - 2026-09-26
 

@@ -1,7 +1,8 @@
 # Example applications
 
 Complete, working command line tools, one per kanna layer, plus one
-that an AI agent can drive through `kanna-schema`. Each is a
+that an AI agent can drive through `kanna-schema` and one that runs as
+a session through `kanna-prompt`. Each is a
 workspace member with its own `Cargo.toml`, so it shows exactly which
 crate and which features a real program needs. None is published.
 
@@ -12,6 +13,7 @@ crate and which features a real program needs. None is published.
 | `todo/` | `todo` | `cli!` macro | `help`, `suggest`, `env` | A todo list in a text file: `add`, `list`, `done`, `undo`, `rm`, `clear`, plus `completions` generated with `kanna-complete` and `repl`, a read-eval-print loop from `kanna-prompt` over the same subcommands. `--file` falls back to `TODO_FILE`. |
 | `hexdump/` | `hexdump` | `#[derive(Args)]` | `help`, `derive` | Hex and ASCII dump with a custom `Size` type (`4k`, `0x100`), `--skip`, `--length`, `--width`, `--offset`, squeezing of repeated lines. |
 | `units/` | `units` | `cli!` + `kanna-schema` | `help`, `json` | A unit converter an AI agent can drive: `length`, `mass`, `temp`, plus `tools` (Claude / MCP tool definitions), `call` (runs a tool from its JSON input through `to_argv`) and `schema` (the JSON description). `KANNA_ERROR_FORMAT=json` gives structured errors. |
+| `rpn/` | `rpn` | `cli!` + `kanna-prompt` | `help`, `suggest` | A reverse Polish calculator session: one definition for the command line that starts it (`--precision`, `--quiet`), another for the verbs typed at the prompt (`push`, `add`, `show`, ...), run by the `kanna-prompt` REPL with the stack in the handler. |
 
 Run one with `cargo run -p kanna-example-<name> -- <args>`:
 
@@ -21,6 +23,7 @@ cargo run -p kanna-example-sift -- -rn "fn main" examples
 cargo run -p kanna-example-todo -- add --priority high Fix the roof
 cargo run -p kanna-example-hexdump -- -n 64 Cargo.lock
 cargo run -p kanna-example-units -- call units_temp '{"value": 100, "from": "c", "to": "f"}'
+printf 'push 3 4\nadd\nshow\n' | cargo run -q -p kanna-example-rpn
 ```
 
 Shorter, single-file demonstrations of individual features live in

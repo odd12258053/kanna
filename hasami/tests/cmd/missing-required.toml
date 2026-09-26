@@ -1,0 +1,12 @@
+bin.name = "builder"
+args = ["-n", "2"]
+status.code = 2
+stdout = ""
+stderr = """
+error: the following required arguments were not provided:
+  <THING>
+
+Usage: greet [OPTIONS] <THING>
+
+For more information, try '--help'.
+"""

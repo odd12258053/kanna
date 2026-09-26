@@ -1,0 +1,18 @@
+[package]
+name = "hasami-example-sift"
+description = "A small grep, written with the hasami builder. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "sift"
+path = "src/main.rs"
+
+[dependencies]
+hasami = { workspace = true, features = ["help", "suggest", "color"] }
+
+[lints]
+workspace = true

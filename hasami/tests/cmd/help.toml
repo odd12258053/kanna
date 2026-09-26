@@ -1,0 +1,19 @@
+bin.name = "builder"
+args = ["--help"]
+status.code = 0
+stdout = """
+Greet someone
+
+Usage: greet [OPTIONS] <THING>
+
+Arguments:
+  <THING>  Whom to greet
+
+Options:
+  -n, --number <NUMBER>  How many times [default: 1]
+      --shout            Use upper case
+  -q, --quiet            Print nothing
+  -h, --help             Print help
+  -V, --version          Print version
+"""
+stderr = ""

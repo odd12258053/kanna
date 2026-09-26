@@ -1,0 +1,24 @@
+[package]
+name = "hasami-core"
+description = "Dependency-free, panic-free, non-Unicode-safe GNU/POSIX command line lexer. The core of hasami."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[features]
+default = ["std"]
+# The core currently requires `std` because it is built on `OsString`.
+# The feature exists so that an `alloc`-only mode can be added without a
+# breaking change (see ADR-0002).
+std = []
+
+[dependencies]
+
+[lints]
+workspace = true

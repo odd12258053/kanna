@@ -1,0 +1,17 @@
+[package]
+name = "hasami-complete"
+description = "Shell completion for hasami commands: static scripts for bash, zsh, fish, PowerShell and nushell, plus runtime completion of values."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+hasami = { workspace = true, features = ["help"] }
+
+[lints]
+workspace = true

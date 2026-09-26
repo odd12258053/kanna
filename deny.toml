@@ -1,0 +1,31 @@
+# cargo-deny configuration: the published crates must keep a clean, tiny
+# dependency graph. The `benches` package pulls in competing libraries for
+# the comparison table only when its `compare` feature is on, which is
+# never the case for the checks below.
+[graph]
+all-features = false
+exclude = ["hasami-benches"]
+# Dev-dependencies (trycmd for snapshot tests) are not part of what users
+# compile; they may bring syn and serde.
+exclude-dev = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+allow = ["MIT", "Apache-2.0", "Unicode-3.0", "Unicode-DFS-2016"]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+# The default graph must stay dependency-free; syn is only reachable through
+# the `derive` feature (checked separately in CI).
+deny = [
+    { crate = "syn", wrappers = ["hasami-derive"] },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

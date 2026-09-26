@@ -1,0 +1,8 @@
+bin.name = "builder"
+args = ["-n2", "--shout", "world"]
+status.code = 0
+stdout = """
+HELLO WORLD
+HELLO WORLD
+"""
+stderr = ""

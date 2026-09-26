@@ -1,0 +1,18 @@
+[package]
+name = "hasami-example-wc"
+description = "A word count clone written on the hasami-core lexer alone. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "wc"
+path = "src/main.rs"
+
+[dependencies]
+hasami-core = { workspace = true, features = ["std"] }
+
+[lints]
+workspace = true

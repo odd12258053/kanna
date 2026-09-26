@@ -1,0 +1,63 @@
+[package]
+name = "hasami-benches"
+description = "Size and build-time measurements for the quality gates. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+# Forwarded to `hasami` so size.sh can build the same sample with different
+# feature sets.
+help = ["hasami/help"]
+suggest = ["hasami/suggest"]
+color = ["hasami/color"]
+env = ["hasami/env"]
+full = ["hasami/full"]
+derive = ["hasami/derive"]
+# Competing libraries, for the comparison table. Off by default so that the
+# workspace's own checks never compile them. One feature per library so that
+# build-time measurements compile only the library under test.
+clap = ["dep:clap"]
+lexopt = ["dep:lexopt"]
+pico-args = ["dep:pico-args"]
+argh = ["dep:argh"]
+bpaf = ["dep:bpaf"]
+compare = ["clap", "lexopt", "pico-args", "argh", "bpaf"]
+
+[dependencies]
+hasami-core = { workspace = true, features = ["std"] }
+hasami = { workspace = true, features = ["std"] }
+clap = { version = "4.5", optional = true, default-features = false, features = ["std", "help", "usage", "error-context"] }
+lexopt = { version = "0.3", optional = true }
+pico-args = { version = "0.5", optional = true }
+argh = { version = "0.1", optional = true }
+bpaf = { version = "0.9", optional = true }
+
+[[bin]]
+name = "derive"
+required-features = ["derive"]
+
+[[bin]]
+name = "clap"
+required-features = ["clap"]
+
+[[bin]]
+name = "lexopt"
+required-features = ["lexopt"]
+
+[[bin]]
+name = "pico_args"
+required-features = ["pico-args"]
+
+[[bin]]
+name = "argh"
+required-features = ["argh"]
+
+[[bin]]
+name = "bpaf"
+required-features = ["bpaf"]
+
+[lints]
+workspace = true

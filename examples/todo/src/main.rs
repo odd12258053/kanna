@@ -1,0 +1,253 @@
+//! `todo`: a todo list kept in a plain text file. The `cli!` macro with
+//! subcommands, a global option with environment fallback, and shell
+//! completion generated from the same definition.
+//!
+//! ```text
+//! cargo run -p hasami-example-todo -- add Buy milk
+//! cargo run -p hasami-example-todo -- add --priority high Fix the roof
+//! cargo run -p hasami-example-todo -- list
+//! cargo run -p hasami-example-todo -- done 1
+//! cargo run -p hasami-example-todo -- completions zsh
+//! TODO_FILE=/tmp/other.txt cargo run -p hasami-example-todo -- list --all
+//! ```
+//!
+//! File format, one task per line: `[ ] (A) text` for an open task with
+//! priority A, `[x] text` for a finished one.
+#![forbid(unsafe_code)]
+
+use std::fmt;
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+use std::str::FromStr;
+
+use hasami::{Cli, Error};
+use hasami_complete::Shell;
+
+hasami::cli! {
+    /// Keep a todo list in a text file
+    #[name = "todo", version = env!("CARGO_PKG_VERSION")]
+    #[after_help = "The list lives in ./todo.txt unless --file or TODO_FILE says otherwise."]
+    struct Args {
+        /// The list file [default: todo.txt]
+        #[short, global, env = "TODO_FILE", value_name = "PATH"]
+        file: Option<PathBuf>,
+        #[subcommand] cmd: Cmd,
+    }
+
+    enum Cmd {
+        /// Add a task
+        Add(Add),
+        /// Show open tasks
+        #[alias = "ls"]
+        List(List),
+        /// Mark a task as finished
+        Done(Select),
+        /// Reopen a finished task
+        Undo(Select),
+        /// Delete a task
+        #[name = "rm", alias = "remove"]
+        Remove(Select),
+        /// Delete every finished task
+        Clear,
+        /// Print a shell completion script
+        Completions(Completions),
+    }
+
+    struct Add {
+        /// Importance
+        #[short, default = Priority::Normal, possible = ["high", "normal", "low"]]
+        priority: Priority,
+        /// Words of the task
+        #[positional, required, value_name = "WORD"]
+        text: Vec<String>,
+    }
+
+    struct List {
+        /// Include finished tasks
+        #[short] all: bool,
+    }
+
+    struct Select {
+        /// Task number as shown by `list`
+        #[positional] id: usize,
+    }
+
+    struct Completions {
+        /// Which shell
+        #[positional, possible = ["bash", "zsh", "fish", "powershell", "nushell"]]
+        shell: Shell,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Priority {
+    High,
+    Normal,
+    Low,
+}
+
+impl FromStr for Priority {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Priority, String> {
+        match s {
+            "high" | "A" => Ok(Priority::High),
+            "normal" | "B" => Ok(Priority::Normal),
+            "low" | "C" => Ok(Priority::Low),
+            other => Err(format!("unknown priority '{other}'")),
+        }
+    }
+}
+
+impl fmt::Display for Priority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Priority::High => "high",
+            Priority::Normal => "normal",
+            Priority::Low => "low",
+        })
+    }
+}
+
+impl Priority {
+    fn letter(self) -> char {
+        match self {
+            Priority::High => 'A',
+            Priority::Normal => 'B',
+            Priority::Low => 'C',
+        }
+    }
+}
+
+struct Task {
+    done: bool,
+    priority: Priority,
+    text: String,
+}
+
+impl Task {
+    fn parse(line: &str) -> Option<Task> {
+        let (done, rest) = if let Some(rest) = line.strip_prefix("[x] ") {
+            (true, rest)
+        } else {
+            (false, line.strip_prefix("[ ] ")?)
+        };
+        let (priority, text) = match rest.as_bytes() {
+            [b'(', p, b')', b' ', ..] => (
+                Priority::from_str(&(*p as char).to_string()).ok()?,
+                rest[4..].to_owned(),
+            ),
+            _ => (Priority::Normal, rest.to_owned()),
+        };
+        Some(Task {
+            done,
+            priority,
+            text,
+        })
+    }
+}
+
+impl fmt::Display for Task {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[{}] ({}) {}",
+            if self.done { 'x' } else { ' ' },
+            self.priority.letter(),
+            self.text
+        )
+    }
+}
+
+fn load(path: &PathBuf) -> Result<Vec<Task>, Error> {
+    let text = match fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => {
+            return Err(Error::custom(format!(
+                "cannot read {}: {e}",
+                path.display()
+            )));
+        }
+    };
+    Ok(text.lines().filter_map(Task::parse).collect())
+}
+
+fn save(path: &PathBuf, tasks: &[Task]) -> Result<(), Error> {
+    let mut text = String::new();
+    for t in tasks {
+        text.push_str(&t.to_string());
+        text.push('\n');
+    }
+    fs::write(path, text)
+        .map_err(|e| Error::custom(format!("cannot write {}: {e}", path.display())))
+}
+
+fn select(tasks: &mut [Task], id: usize) -> Result<&mut Task, Error> {
+    id.checked_sub(1)
+        .and_then(|i| tasks.get_mut(i))
+        .ok_or_else(|| {
+            Error::custom(format!("no task number {id}"))
+                .with_tip("run 'todo list --all' to see the numbers")
+        })
+}
+
+fn run(args: Args) -> Result<(), Error> {
+    let file = args.file.unwrap_or_else(|| PathBuf::from("todo.txt"));
+    let mut tasks = load(&file)?;
+    match args.cmd {
+        Cmd::Add(add) => {
+            tasks.push(Task {
+                done: false,
+                priority: add.priority,
+                text: add.text.join(" "),
+            });
+            save(&file, &tasks)?;
+            println!("added task {}", tasks.len());
+        }
+        Cmd::List(list) => {
+            let mut shown: Vec<(usize, &Task)> = tasks
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| list.all || !t.done)
+                .collect();
+            shown.sort_by_key(|(i, t)| (t.done, t.priority, *i));
+            if shown.is_empty() {
+                println!("nothing to do");
+            }
+            for (i, t) in shown {
+                println!("{:>3}. {t}", i + 1);
+            }
+        }
+        Cmd::Done(s) => {
+            select(&mut tasks, s.id)?.done = true;
+            save(&file, &tasks)?;
+        }
+        Cmd::Undo(s) => {
+            select(&mut tasks, s.id)?.done = false;
+            save(&file, &tasks)?;
+        }
+        Cmd::Remove(s) => {
+            select(&mut tasks, s.id)?;
+            let t = tasks.remove(s.id - 1);
+            save(&file, &tasks)?;
+            println!("removed: {}", t.text);
+        }
+        Cmd::Clear => {
+            let before = tasks.len();
+            tasks.retain(|t| !t.done);
+            save(&file, &tasks)?;
+            println!("removed {} finished task(s)", before - tasks.len());
+        }
+        Cmd::Completions(c) => {
+            print!("{}", hasami_complete::generate(c.shell, &Args::command()));
+        }
+    }
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = run(Args::parse()) {
+        e.exit();
+    }
+}

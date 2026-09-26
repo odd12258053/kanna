@@ -1,0 +1,4 @@
+# Keep LF everywhere: snapshot files under hasami/tests/cmd compare program
+# output byte for byte, and Windows checkouts must not turn them into CRLF.
+* text=auto eol=lf
+*.png binary

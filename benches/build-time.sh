@@ -31,7 +31,12 @@ budget() {
   esac
 }
 cargo fetch -q
-timed() { # profile bin features
+# The first build on a cold machine (fresh CI runner, cold disk cache) can
+# take several times longer than the steady state and says nothing about
+# the library. Warm up untimed, then report the best of two runs.
+cargo build -q -p hasami-benches --bin empty
+cargo build -q --release -p hasami-benches --bin empty
+timed_once() { # profile bin features
   local flags=(-q --profile "$1" -p hasami-benches --bin "$2")
   [ -n "$3" ] && flags+=(--features "$3")
   cargo clean -q --profile "$1" 2>/dev/null || cargo clean -q
@@ -40,6 +45,12 @@ timed() { # profile bin features
   cargo build "${flags[@]}"
   end=$(date +%s.%N)
   echo "$end - $start" | bc -l
+}
+timed() {
+  local a b
+  a=$(timed_once "$@")
+  b=$(timed_once "$@")
+  if [ "$(echo "$a < $b" | bc -l)" = 1 ]; then echo "$a"; else echo "$b"; fi
 }
 printf '%-20s %10s %10s %8s\n' variant 'dev (s)' 'release (s)' budget
 fail=0

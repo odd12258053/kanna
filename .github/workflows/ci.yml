@@ -90,6 +90,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-fuzz --locked
-      - run: cd hasami-core && cargo fuzz run lexer -- -max_total_time=60 -max_len=256
+      # `+nightly` overrides the stable toolchain pinned by rust-toolchain.toml.
+      - run: cd hasami-core && cargo +nightly fuzz run lexer -- -max_total_time=60 -max_len=256
         env:
           RUSTFLAGS: ""

@@ -1,6 +1,6 @@
 [package]
 name = "kanna-example-todo"
-description = "A todo list manager written with the kanna cli! macro. Not published."
+description = "A todo list manager written with the kanna cli! macro, with a REPL from kanna-prompt. Not published."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 kanna = { workspace = true, features = ["help", "suggest", "env"] }
 kanna-complete = { path = "../../kanna-complete", version = "0.2.0" }
+kanna-prompt = { path = "../../kanna-prompt", version = "0.2.0" }
 
 [lints]
 workspace = true

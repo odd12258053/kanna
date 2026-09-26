@@ -1,6 +1,8 @@
 //! `todo`: a todo list kept in a plain text file. The `cli!` macro with
-//! subcommands, a global option with environment fallback, and shell
-//! completion generated from the same definition.
+//! subcommands, a global option with environment fallback, shell
+//! completion generated from the same definition, and a REPL (`repl`)
+//! from `kanna-prompt` that reads the same subcommands one line at a
+//! time.
 //!
 //! ```text
 //! cargo run -p kanna-example-todo -- add Buy milk
@@ -9,7 +11,12 @@
 //! cargo run -p kanna-example-todo -- done 1
 //! cargo run -p kanna-example-todo -- completions zsh
 //! TODO_FILE=/tmp/other.txt cargo run -p kanna-example-todo -- list --all
+//! cargo run -p kanna-example-todo -- repl
+//! printf 'add Call mum\nlist\n' | cargo run -q -p kanna-example-todo -- repl
 //! ```
+//!
+//! In the REPL, `--file` given on the command line stays in effect;
+//! `help`, `exit` and end of input work as usual.
 //!
 //! File format, one task per line: `[ ] (A) text` for an open task with
 //! priority A, `[x] text` for a finished one.
@@ -22,6 +29,7 @@ use std::path::PathBuf;
 
 use kanna::{Cli, Error};
 use kanna_complete::Shell;
+use kanna_prompt::{Flow, Repl};
 
 kanna::value_enum! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -56,6 +64,9 @@ kanna::cli! {
         Clear,
         /// Print a shell completion script
         Completions(Completions),
+        /// Read subcommands from standard input, one per line
+        #[no_tool]
+        Repl,
     }
 
     struct Add {
@@ -222,6 +233,23 @@ fn run(args: Args) -> Result<(), Error> {
         }
         Cmd::Completions(c) => {
             print!("{}", kanna_complete::generate(c.shell, &Args::command()));
+        }
+        Cmd::Repl => {
+            // Each line is parsed into the same `Args`; the outer `--file`
+            // carries over unless the line sets its own.
+            let cmd = Args::command();
+            Repl::new(&cmd)
+                .prompt("todo> ")
+                .run_typed::<Args, _>(|mut inner| {
+                    if inner.file.is_none() {
+                        inner.file = Some(file.clone());
+                    }
+                    match inner.cmd {
+                        Cmd::Repl => Err(Error::custom("already in the repl")),
+                        _ => run(inner).map(|()| Flow::Continue),
+                    }
+                })
+                .map_err(Error::from)?;
         }
     }
     Ok(())

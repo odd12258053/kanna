@@ -251,8 +251,18 @@ impl Subcommand {
 
 /// Split a command line into words the way a POSIX shell does for the
 /// simple cases: whitespace separates, single quotes take everything
-/// literally, double quotes allow `\"` and `\\`.
-pub(crate) fn shell_words(line: &str) -> Vec<String> {
+/// literally, double quotes allow `\"` and `\\`, and a backslash outside
+/// quotes escapes the next character. No variables, globs or comments.
+/// Used by [`Command::check_examples`] and by `kanna-prompt` to read a
+/// line typed at a prompt.
+///
+/// ```
+/// assert_eq!(
+///     kanna::split_words(r#"add --priority high 'Fix the roof' "say \"hi\"" a\ b"#),
+///     ["add", "--priority", "high", "Fix the roof", "say \"hi\"", "a b"]
+/// );
+/// ```
+pub fn split_words(line: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut cur = String::new();
     let mut in_word = false;
@@ -882,7 +892,7 @@ impl Command {
     fn check_examples_into(&self, out: &mut Vec<String>) {
         for ex in &self.examples {
             let line = ex.split('#').next().unwrap_or("").trim();
-            let mut words = shell_words(line);
+            let mut words = split_words(line);
             if let Some(i) = words.iter().position(|w| w == &self.name) {
                 words.drain(..=i);
             }

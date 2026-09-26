@@ -76,7 +76,7 @@ mod suggest;
 mod traits;
 
 pub use arg::{Arg, ArgDef, Completer, Relation, ValueEnum, ValueType};
-pub use command::{Command, Group, Subcommand};
+pub use command::{Command, Group, Subcommand, split_words};
 pub use error::{Error, ErrorKind};
 pub use matches::{Matches, Source};
 pub use style::{Stream, Styles};

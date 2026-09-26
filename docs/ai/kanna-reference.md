@@ -15,7 +15,7 @@ does not exist; in particular none of clap's `#[arg]`, `#[command]`,
 | Typed options, subcommands, constraints, `--help` | `kanna` builder | `kanna = "0.2"` (default features: `help`, `std`) |
 | A struct filled in, no proc-macro | `kanna::cli!` | same |
 | A struct filled in, `#[derive]` | `kanna::Args` etc. | `kanna = { version = "0.2", features = ["derive"] }` |
-| Shell completion, man/Markdown/HTML, JSON schema, AI tool definitions | `kanna-complete`, `kanna-doc`, `kanna-schema` | separate crates, each depends on `kanna` |
+| Shell completion, man/Markdown/HTML, JSON schema, AI tool definitions, a REPL | `kanna-complete`, `kanna-doc`, `kanna-schema`, `kanna-prompt` | separate crates, each depends on `kanna` |
 
 Features of `kanna`: `help` (default; `-h/--help`, `-V/--version`),
 `suggest` ("did you mean" tips), `color` (ANSI, honours `NO_COLOR`,
@@ -319,7 +319,17 @@ kanna_schema::to_json(&cmd); kanna_schema::to_json_pretty(&cmd) // JSON descript
 kanna_schema::tool::tools(&cmd)                             // Vec<Tool { name, path, description, input_schema }>: one per runnable command
 tool.to_json() / tool.to_mcp_json(); kanna_schema::tool::to_json(&tools, mcp: bool)
 kanna_schema::tool::to_argv(&cmd, "app_add", r#"{"count": 2}"#) // JSON tool input → Result<Vec<OsString>, kanna::Error>, verified by parsing
+kanna_prompt::Repl::new(&cmd).prompt("app> ").run(|m: &Matches| Ok(Flow::Continue)) // REPL: a line = argv without the binary name
+repl.run_typed::<Args, _>(|args| ..)                        // same, parsed into a cli!/derive struct
+repl.run_line(line, handler) -> Result<Option<Flow>, Error>  // one line, errors returned (for a line editor)
+kanna_prompt::complete_line(&cmd, "gr")                     // feature `complete`: candidates for a partial line
+kanna::split_words("a 'b c' \"d\"")                          // the shell-like splitter both use
 ```
+
+The REPL skips empty and `#` lines, ends on `exit`/`quit` (configurable
+with `exit_words`, a subcommand of that name wins) or end of input, turns
+`help` into `--help`, prints errors with `Error::print` and continues.
+Mark the `repl` subcommand `no_tool`.
 
 Tool input schemas use the argument ids as property names: flags are
 booleans, counters and unsigned integers integers with `minimum: 0`,

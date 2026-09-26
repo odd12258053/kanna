@@ -11,10 +11,10 @@ does not exist; in particular none of clap's `#[arg]`, `#[command]`,
 
 | Need | Use | `Cargo.toml` |
 |------|-----|--------------|
-| A tiny tool, order-dependent options, no help text | `kanna-core` (a lexer loop) | `kanna-core = "0.1"` |
-| Typed options, subcommands, constraints, `--help` | `kanna` builder | `kanna = "0.1"` (default features: `help`, `std`) |
+| A tiny tool, order-dependent options, no help text | `kanna-core` (a lexer loop) | `kanna-core = "0.2"` |
+| Typed options, subcommands, constraints, `--help` | `kanna` builder | `kanna = "0.2"` (default features: `help`, `std`) |
 | A struct filled in, no proc-macro | `kanna::cli!` | same |
-| A struct filled in, `#[derive]` | `kanna::Args` etc. | `kanna = { version = "0.1", features = ["derive"] }` |
+| A struct filled in, `#[derive]` | `kanna::Args` etc. | `kanna = { version = "0.2", features = ["derive"] }` |
 | Shell completion, man/Markdown/HTML, JSON schema, AI tool definitions | `kanna-complete`, `kanna-doc`, `kanna-schema` | separate crates, each depends on `kanna` |
 
 Features of `kanna`: `help` (default; `-h/--help`, `-V/--version`),

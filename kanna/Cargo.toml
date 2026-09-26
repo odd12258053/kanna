@@ -37,9 +37,9 @@ kanna-core = { workspace = true }
 kanna-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
-kanna-complete = { path = "../kanna-complete", version = "0.1.0" }
-kanna-doc = { path = "../kanna-doc", version = "0.1.0" }
-kanna-schema = { path = "../kanna-schema", version = "0.1.0" }
+kanna-complete = { path = "../kanna-complete" }
+kanna-doc = { path = "../kanna-doc" }
+kanna-schema = { path = "../kanna-schema" }
 trycmd = { version = "0.15", features = ["examples"] }
 trybuild = "1.0"
 

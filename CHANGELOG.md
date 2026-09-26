@@ -9,6 +9,12 @@ migration note here.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-26
+
+First release on crates.io.
+
 ### Changed
 
 * The project is named **kanna** (was hasami, which was already taken on
@@ -80,3 +86,6 @@ migration note here.
   JSON Schema for the format.
 * Size and build-time gates (`benches/`), CI workflow, `cargo deny`
   configuration, trycmd snapshot tests, examples for every layer.
+
+[Unreleased]: https://github.com/odd12258053/kanna/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/odd12258053/kanna/releases/tag/v0.1.0

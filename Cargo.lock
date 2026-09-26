@@ -295,7 +295,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "kanna"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna-complete",
  "kanna-core",
@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "kanna-benches"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "argh",
  "bpaf",
@@ -321,18 +321,18 @@ dependencies = [
 
 [[package]]
 name = "kanna-complete"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
 ]
 
 [[package]]
 name = "kanna-core"
-version = "0.2.1"
+version = "0.2.2"
 
 [[package]]
 name = "kanna-derive"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -341,21 +341,21 @@ dependencies = [
 
 [[package]]
 name = "kanna-doc"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
 ]
 
 [[package]]
 name = "kanna-example-hexdump"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
 ]
 
 [[package]]
 name = "kanna-example-rpn"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
  "kanna-prompt",
@@ -363,14 +363,14 @@ dependencies = [
 
 [[package]]
 name = "kanna-example-sift"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
 ]
 
 [[package]]
 name = "kanna-example-todo"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
  "kanna-complete",
@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "kanna-example-units"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
  "kanna-schema",
@@ -387,14 +387,14 @@ dependencies = [
 
 [[package]]
 name = "kanna-example-wc"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna-core",
 ]
 
 [[package]]
 name = "kanna-prompt"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
  "kanna-complete",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "kanna-schema"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "kanna",
 ]

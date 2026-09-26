@@ -48,4 +48,6 @@ description: Build or change a command line interface with the kanna crates (kan
 
 Worked, runnable examples: `kanna/examples/*.rs` (one feature each) and
 `examples/{wc,sift,todo,hexdump}` (complete tools, one per layer) and
-`examples/units` (an agent-facing tool built on `kanna-schema`).
+`examples/units` (an agent-facing tool built on `kanna-schema`) and
+`examples/rpn` (a session on the `kanna-prompt` REPL, with a separate
+definition for what is typed at the prompt).

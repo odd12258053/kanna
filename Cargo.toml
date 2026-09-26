@@ -15,6 +15,7 @@ members = [
     "examples/todo",
     "examples/hexdump",
     "examples/units",
+    "examples/rpn",
 ]
 
 [workspace.package]

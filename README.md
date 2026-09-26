@@ -174,8 +174,9 @@ lexer with `--` pass-through, multi-value options and error recovery).
 
 Complete applications, one per layer, live under [`examples/`](examples/README.md):
 a `wc` on the bare lexer, a grep with the builder, a todo list with `cli!`, a
-`hexdump` with derive, and `units`, a converter an AI agent can drive through
-`kanna-schema` tool definitions. Run them with `cargo run -p kanna-example-<name>`.
+`hexdump` with derive, `units`, a converter an AI agent can drive through
+`kanna-schema` tool definitions, and `rpn`, a calculator session on the
+`kanna-prompt` REPL. Run them with `cargo run -p kanna-example-<name>`.
 
 ## Features of `kanna`
 

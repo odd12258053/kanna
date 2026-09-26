@@ -36,6 +36,12 @@
 //! No line editing or history: this crate has no dependencies. To add
 //! them, drive [`Repl::run_line`] from a line-editing library and, with
 //! the `complete` feature, feed [`complete_line`] to its completer.
+//!
+//! Two shapes are worth knowing. A program can run its own command in
+//! the loop (`examples/todo` in the repository adds a `repl` subcommand
+//! that reads the other subcommands), or keep a separate definition for
+//! what is typed at the prompt (`examples/rpn`, whose verbs are not
+//! command-line subcommands at all).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

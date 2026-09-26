@@ -13,8 +13,8 @@ path = "src/main.rs"
 
 [dependencies]
 kanna = { workspace = true, features = ["help", "suggest", "env"] }
-kanna-complete = { path = "../../kanna-complete", version = "0.2.0" }
-kanna-prompt = { path = "../../kanna-prompt", version = "0.2.0" }
+kanna-complete = { path = "../../kanna-complete", version = "0.2.1" }
+kanna-prompt = { path = "../../kanna-prompt", version = "0.2.1" }
 
 [lints]
 workspace = true

@@ -9,7 +9,12 @@ migration note here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+* `examples/units`: a unit converter an AI agent can drive. Shows
+  `kanna_schema::tool` end to end: `tools` prints Claude / MCP tool
+  definitions, `call` turns a tool's JSON input into a command line with
+  `to_argv` and runs it, `schema` prints the JSON description.
 
 ## [0.1.0] - 2026-09-26
 

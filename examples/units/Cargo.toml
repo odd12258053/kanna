@@ -1,0 +1,19 @@
+[package]
+name = "kanna-example-units"
+description = "A unit converter an AI agent can drive, using kanna-schema. Not published."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "units"
+path = "src/main.rs"
+
+[dependencies]
+kanna = { workspace = true, features = ["help", "json"] }
+kanna-schema = { path = "../../kanna-schema", version = "0.1.0" }
+
+[lints]
+workspace = true

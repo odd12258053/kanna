@@ -43,4 +43,5 @@ description: Build or change a command line interface with the kanna crates (kan
    `docs/ADR/` and numbers in `docs/reports/`.
 
 Worked, runnable examples: `kanna/examples/*.rs` (one feature each) and
-`examples/{wc,sift,todo,hexdump}` (complete tools, one per layer).
+`examples/{wc,sift,todo,hexdump}` (complete tools, one per layer) and
+`examples/units` (an agent-facing tool built on `kanna-schema`).

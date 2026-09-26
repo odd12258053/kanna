@@ -9,7 +9,18 @@ migration note here.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+* `kanna_schema::tool`: the tool's input schema now carries the
+  argument relations the parser enforces, which it used to ignore
+  (`required_unless` arguments were listed as unconditionally required,
+  or, without `required`, as optional). `required_unless` becomes an
+  `anyOf` of the argument and those that lift its requirement,
+  `required_if_eq`, `requires` and `requires_if` an `if`/`then`,
+  `conflicts_with` a `not`, several joined with `allOf`. An argument
+  counts as given as the parser sees it: a flag as `true`, a counter at
+  least 1, a list non-empty. An argument with a default is never
+  required.
 
 ## [0.2.1] - 2026-09-26
 
